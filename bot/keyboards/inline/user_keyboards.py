@@ -194,16 +194,20 @@ def get_connect_and_main_keyboard(
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
 
-    if settings.SUBSCRIPTION_MINI_APP_URL:
+    # Prefer opening subscription page inside Telegram as WebApp using actual subscription link
+    if config_link:
+        builder.row(
+            InlineKeyboardButton(
+                text=_("connect_button"),
+                web_app=WebAppInfo(url=config_link),
+            )
+        )
+    elif settings.SUBSCRIPTION_MINI_APP_URL:
         builder.row(
             InlineKeyboardButton(
                 text=_("connect_button"),
                 web_app=WebAppInfo(url=settings.SUBSCRIPTION_MINI_APP_URL),
             )
-        )
-    elif config_link:
-        builder.row(
-            InlineKeyboardButton(text=_("connect_button"), url=config_link)
         )
     else:
         builder.row(
