@@ -23,6 +23,7 @@ class PanelApiService:
         if base.lower().endswith('/api'):
             base = base[:-4]
         self.base_url = base
+        logging.info(f"Panel API base_url normalized to: {self.base_url}")
         self.api_key = settings.PANEL_API_KEY
         self._session: Optional[aiohttp.ClientSession] = None
         self.default_client_ip = "127.0.0.1"
@@ -314,6 +315,8 @@ class PanelApiService:
             unwrapped = self._unwrap_response(response_data)
             if isinstance(unwrapped, list):
                 return unwrapped
+            if isinstance(unwrapped, dict) and 'users' in unwrapped:
+                return unwrapped.get('users') or []
             elif response_data and response_data.get("errorCode") == "A062":
                 logging.info(
                     f"Panel API: Users not found for {filter_used_log}")
@@ -328,6 +331,9 @@ class PanelApiService:
 
             unwrapped = self._unwrap_response(response_data)
             if isinstance(unwrapped, dict):
+                # v1 may return a single object or {users: [...]} — support both
+                if 'users' in unwrapped:
+                    return unwrapped.get('users') or []
                 return [unwrapped]
             elif response_data and response_data.get("errorCode") == "A062":
                 logging.info(
@@ -344,6 +350,8 @@ class PanelApiService:
             unwrapped = self._unwrap_response(response_data)
             if isinstance(unwrapped, list):
                 return unwrapped
+            if isinstance(unwrapped, dict) and 'users' in unwrapped:
+                return unwrapped.get('users') or []
             elif response_data and response_data.get("errorCode") == "A062":
                 logging.info(
                     f"Panel API: Users not found for {filter_used_log}")
