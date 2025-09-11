@@ -1,7 +1,7 @@
 services:
   remnawave-tg-shop:
     image: ghcr.io/machka-pasla/remnawave-tg-shop:latest
-#    build: .
+    build: .
     container_name: remnawave-tg-shop
     hostname: remnawave-tg-shop
     env_file:
@@ -11,6 +11,8 @@ services:
     volumes:
       - ./locales:/app/locales
     restart: unless-stopped
+    ports:
+      - 8081:8081
     depends_on:
       remnawave-tg-shop-db:
         condition: service_healthy

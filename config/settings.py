@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = Field(default="vpn_shop_db")
 
     DEFAULT_LANGUAGE: str = Field(default="ru")
+    # When False, the bot will NOT override default language with Telegram client's language
+    USE_TELEGRAM_LANGUAGE_DETECTION: bool = Field(default=False)
     DEFAULT_CURRENCY_SYMBOL: str = Field(default="RUB")
 
     SUPPORT_LINK: Optional[str] = Field(default=None)

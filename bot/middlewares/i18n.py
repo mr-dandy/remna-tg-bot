@@ -142,25 +142,23 @@ class I18nMiddleware(BaseMiddleware):
                     session, event_user.id)
                 if user_db_model and user_db_model.language_code and user_db_model.language_code in self.i18n.locales_data:
                     current_language = user_db_model.language_code
-                elif event_user.language_code:
+                elif self.settings.USE_TELEGRAM_LANGUAGE_DETECTION and event_user.language_code:
                     lang_prefix = event_user.language_code.split(
                         '-')[0].lower()
                     if lang_prefix in self.i18n.locales_data:
                         current_language = lang_prefix
-                    elif event_user.language_code.lower(
-                    ) in self.i18n.locales_data:
+                    elif event_user.language_code.lower() in self.i18n.locales_data:
                         current_language = event_user.language_code.lower()
             except Exception as e_db_lang:
                 logging.error(
                     f"I18nMiddleware: Error fetching user lang from DB for {event_user.id}: {e_db_lang}. Falling back.",
                     exc_info=True)
-                if event_user.language_code:
+                if self.settings.USE_TELEGRAM_LANGUAGE_DETECTION and event_user.language_code:
                     lang_prefix = event_user.language_code.split(
                         '-')[0].lower()
                     if lang_prefix in self.i18n.locales_data:
                         current_language = lang_prefix
-                    elif event_user.language_code.lower(
-                    ) in self.i18n.locales_data:
+                    elif event_user.language_code.lower() in self.i18n.locales_data:
                         current_language = event_user.language_code.lower()
 
         data["i18n_data"] = {
