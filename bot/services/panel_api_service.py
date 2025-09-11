@@ -17,7 +17,12 @@ class PanelApiService:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.base_url = settings.PANEL_API_URL
+        # Normalize base URL and strip trailing /api to avoid double prefixing later
+        base = settings.PANEL_API_URL or ""
+        base = base.rstrip('/')
+        if base.lower().endswith('/api'):
+            base = base[:-4]
+        self.base_url = base
         self.api_key = settings.PANEL_API_KEY
         self._session: Optional[aiohttp.ClientSession] = None
         self.default_client_ip = "127.0.0.1"
@@ -86,7 +91,11 @@ class PanelApiService:
         aiohttp_session = await self._get_session()
         headers = await self._prepare_headers()
 
-        url_for_request = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
+        # Ensure API prefix for business endpoints
+        ep = endpoint.lstrip('/')
+        if not ep.startswith('api/') and not ep.startswith('system/'):
+            ep = f"api/{ep}"
+        url_for_request = f"{self.base_url.rstrip('/')}/{ep}"
 
         current_params = kwargs.get("params")
         url_with_params_for_log = url_for_request
@@ -176,9 +185,12 @@ class PanelApiService:
         try:
             # First attempt: as-is
             result = await _do_request(url_for_request)
-            # If 404/410/"not found" then try v2 prefix fallback
+            # If 404/410/"not found" then try v2 prefix fallback (avoid duplicating api/)
             if result and result.get("error") and result.get("status_code") in {404, 410}:
-                v2_url = f"{self.base_url.rstrip('/')}/api/v2/{endpoint.lstrip('/')}"
+                v2_ep = endpoint.lstrip('/')
+                if v2_ep.startswith('api/'):
+                    v2_ep = v2_ep[4:]
+                v2_url = f"{self.base_url.rstrip('/')}/api/v2/{v2_ep}"
                 logging.debug(
                     f"Retrying Panel API request with v2 prefix: {v2_url}")
                 result_v2 = await _do_request(v2_url)
