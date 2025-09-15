@@ -1,7 +1,6 @@
 {
   "welcome": "Welcome, {user_name}!",
   "main_menu_greeting": "Hi, {user_name}! 👋\nWhat would you like to do?",
-
   "menu_activate_trial_button": "🆓 Free Trial",
   "menu_subscribe_inline": "🚀 Purchase",
   "menu_my_subscription_inline": "🔐 My Subscription",
@@ -13,20 +12,17 @@
   "menu_server_status_button": "📊 Status",
   "menu_support_button": "💬 Support",
   "menu_terms_button": "📄 Terms of Service",
-
+  "menu_group_button": "Telegram Group",
+  "menu_instructions_button": "📘 Instructions",
   "back_to_main_menu_button": "⬅️ Back",
-
   "choose_language": "Choose language:",
   "language_set_alert": "Language changed!",
-
   "error_occurred_try_again": "An error occurred, please try again.",
   "error_try_again": "Please try again.",
   "error_displaying_menu": "Error displaying menu.",
   "main_menu_unknown_action": "Unknown action.",
-
   "select_subscription_period": "Select subscription period:",
   "subscribe_for_months_button": "{months} mo. - {price} {currency_symbol}",
-
   "choose_payment_method": "Choose payment method:",
   "pay_button": "💳 Pay",
   "pay_with_yookassa_button": "💳 YooKassa",
@@ -43,7 +39,6 @@
   "payment_failed": "❌ Payment failed or was cancelled. Please try again or contact support.",
   "config_link_not_available": "not available, contact support",
   "traffic_unlimited": "Unlimited",
-
   "promo_code_prompt": "Please enter your promo code:",
   "promo_code_not_found": "Promo code <code>{code}</code> not found, expired, or already used the maximum number of times.",
   "promo_code_already_used_by_user": "You have already used promo code <code>{code}</code>.",
@@ -65,7 +60,6 @@
   "referral_bonus_inviter_notification_extended": "🎉 Congrats! Your friend {referee_name} paid for a subscription. You received {days} bonus days! Your subscription is now active until {new_end_date}.",
   "referral_bonus_inviter_notification_new_sub": "🎉 Congrats! Your friend {referee_name} paid for a subscription. You received a {days}-day bonus subscription! It is active until {new_end_date}.",
   "user_is_banned": "🚫 Your account is banned. Please contact support.",
-
   "admin_panel_title": "Admin Panel",
   "admin_stats_button": "📊 Statistics",
   "admin_broadcast_button": "📢 Broadcast",
@@ -319,7 +313,6 @@
   "admin_user_subscription_active_until": "⏰ <b>Active until:</b>",
   "admin_user_subscription_error": "Loading error",
   "admin_promo_management_button": "🎟 Promo Management",
-
   "admin_promo_management_title": "🎟 <b>Promo Code Management</b>\n\nSelect a promo code for detailed view:",
   "admin_promo_management_empty": "📭 No promo codes available",
   "admin_promo_card_title": "🎟 <b>Promo Code: {code}</b>",

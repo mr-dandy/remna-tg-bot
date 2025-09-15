@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     SUPPORT_LINK: Optional[str] = Field(default=None)
     SERVER_STATUS_URL: Optional[str] = Field(default=None)
     TERMS_OF_SERVICE_URL: Optional[str] = Field(default=None)
+    # Community and docs
+    GROUP_LINK: Optional[str] = Field(
+        default=None, description="Telegram group/channel link")
+    INSTRUCTIONS_URL: Optional[str] = Field(
+        default=None, description="Instructions URL")
 
     YOOKASSA_SHOP_ID: Optional[str] = None
     YOOKASSA_SECRET_KEY: Optional[str] = None

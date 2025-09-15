@@ -50,10 +50,20 @@ def get_main_menu_inline_keyboard(
     else:
         builder.row(language_button)
 
+    # Support / Group / Instructions block
+    aux_buttons: List[InlineKeyboardButton] = []
     if settings.SUPPORT_LINK:
-        builder.row(
-            InlineKeyboardButton(text=_(key="menu_support_button"),
-                                 url=settings.SUPPORT_LINK))
+        aux_buttons.append(InlineKeyboardButton(
+            text=_(key="menu_support_button"), url=settings.SUPPORT_LINK))
+    if getattr(settings, "GROUP_LINK", None):
+        aux_buttons.append(InlineKeyboardButton(
+            text=_(key="menu_group_button"), url=settings.GROUP_LINK))
+    if getattr(settings, "INSTRUCTIONS_URL", None):
+        aux_buttons.append(InlineKeyboardButton(
+            text=_(key="menu_instructions_button"), url=settings.INSTRUCTIONS_URL))
+    if aux_buttons:
+        for i in range(0, len(aux_buttons), 2):
+            builder.row(*aux_buttons[i:i+2])
 
     if settings.TERMS_OF_SERVICE_URL:
         builder.row(
@@ -91,8 +101,8 @@ def get_trial_confirmation_keyboard(lang: str,
 
 
 def get_subscription_options_keyboard(subscription_options: Dict[
-    int, Optional[int]], currency_symbol_val: str, lang: str,
-                                      i18n_instance) -> InlineKeyboardMarkup:
+        int, Optional[int]], currency_symbol_val: str, lang: str,
+        i18n_instance) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     if subscription_options:
@@ -224,6 +234,21 @@ def get_connect_and_main_keyboard(
         )
     )
 
+    # Duplicate helpful links here as well
+    aux_buttons2: List[InlineKeyboardButton] = []
+    if getattr(settings, "GROUP_LINK", None):
+        aux_buttons2.append(InlineKeyboardButton(
+            text=_("menu_group_button"), url=settings.GROUP_LINK))
+    if getattr(settings, "INSTRUCTIONS_URL", None):
+        aux_buttons2.append(InlineKeyboardButton(
+            text=_("menu_instructions_button"), url=settings.INSTRUCTIONS_URL))
+    if settings.SUPPORT_LINK:
+        aux_buttons2.append(InlineKeyboardButton(
+            text=_("menu_support_button"), url=settings.SUPPORT_LINK))
+    if aux_buttons2:
+        for i in range(0, len(aux_buttons2), 2):
+            builder.row(*aux_buttons2[i:i+2])
+
     return builder.as_markup()
 
 
@@ -232,10 +257,12 @@ def get_payment_methods_manage_keyboard(lang: str, i18n_instance, has_card: bool
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text=_(key="payment_method_bind_button"), callback_data="pm:bind")
+        InlineKeyboardButton(
+            text=_(key="payment_method_bind_button"), callback_data="pm:bind")
     )
     builder.row(
-        InlineKeyboardButton(text=_(key="back_to_main_menu_button"), callback_data="main_action:back_to_main")
+        InlineKeyboardButton(text=_(key="back_to_main_menu_button"),
+                             callback_data="main_action:back_to_main")
     )
     return builder.as_markup()
 
@@ -265,15 +292,19 @@ def get_payment_methods_list_keyboard(
     # Pagination controls if needed
     nav_buttons: List[InlineKeyboardButton] = []
     if start > 0:
-        nav_buttons.append(InlineKeyboardButton(text="⬅️", callback_data=f"pm:list:{page-1}"))
+        nav_buttons.append(InlineKeyboardButton(
+            text="⬅️", callback_data=f"pm:list:{page-1}"))
     if end < total:
-        nav_buttons.append(InlineKeyboardButton(text="➡️", callback_data=f"pm:list:{page+1}"))
+        nav_buttons.append(InlineKeyboardButton(
+            text="➡️", callback_data=f"pm:list:{page+1}"))
     if nav_buttons:
         builder.row(*nav_buttons)
 
     # Bind new card and back
-    builder.row(InlineKeyboardButton(text=_(key="payment_method_bind_button"), callback_data="pm:bind"))
-    builder.row(InlineKeyboardButton(text=_(key="back_to_main_menu_button"), callback_data="main_action:back_to_main"))
+    builder.row(InlineKeyboardButton(
+        text=_(key="payment_method_bind_button"), callback_data="pm:bind"))
+    builder.row(InlineKeyboardButton(text=_(
+        key="back_to_main_menu_button"), callback_data="main_action:back_to_main"))
     return builder.as_markup()
 
 
@@ -281,8 +312,10 @@ def get_payment_method_delete_confirm_keyboard(pm_id: str, lang: str, i18n_insta
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text=_(key="yes_button"), callback_data=f"pm:delete:{pm_id}"),
-        InlineKeyboardButton(text=_(key="cancel_button"), callback_data=f"pm:view:{pm_id}"),
+        InlineKeyboardButton(text=_(key="yes_button"),
+                             callback_data=f"pm:delete:{pm_id}"),
+        InlineKeyboardButton(text=_(key="cancel_button"),
+                             callback_data=f"pm:view:{pm_id}"),
     )
     return builder.as_markup()
 
@@ -291,13 +324,16 @@ def get_payment_method_details_keyboard(pm_id: str, lang: str, i18n_instance) ->
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text=_(key="payment_method_tx_history_title"), callback_data=f"pm:history:{pm_id}")
+        InlineKeyboardButton(text=_(
+            key="payment_method_tx_history_title"), callback_data=f"pm:history:{pm_id}")
     )
     builder.row(
-        InlineKeyboardButton(text=_(key="payment_method_delete_button"), callback_data=f"pm:delete_confirm:{pm_id}")
+        InlineKeyboardButton(text=_(key="payment_method_delete_button"),
+                             callback_data=f"pm:delete_confirm:{pm_id}")
     )
     builder.row(
-        InlineKeyboardButton(text=_(key="back_to_main_menu_button"), callback_data="pm:list:0")
+        InlineKeyboardButton(
+            text=_(key="back_to_main_menu_button"), callback_data="pm:list:0")
     )
     return builder.as_markup()
 
@@ -306,7 +342,8 @@ def get_bind_url_keyboard(bind_url: str, lang: str, i18n_instance) -> InlineKeyb
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.button(text=_(key="payment_method_bind_button"), url=bind_url)
-    builder.button(text=_(key="back_to_main_menu_button"), callback_data="pm:manage")
+    builder.button(text=_(key="back_to_main_menu_button"),
+                   callback_data="pm:manage")
     builder.adjust(1)
     return builder.as_markup()
 
@@ -314,7 +351,8 @@ def get_bind_url_keyboard(bind_url: str, lang: str, i18n_instance) -> InlineKeyb
 def get_back_to_payment_methods_keyboard(lang: str, i18n_instance) -> InlineKeyboardMarkup:
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text=_(key="back_to_main_menu_button"), callback_data="pm:list:0"))
+    builder.row(InlineKeyboardButton(
+        text=_(key="back_to_main_menu_button"), callback_data="pm:list:0"))
     return builder.as_markup()
 
 
@@ -322,7 +360,8 @@ def get_back_to_payment_method_details_keyboard(pm_id: str, lang: str, i18n_inst
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     # Back one step: return to specific payment method details
-    builder.row(InlineKeyboardButton(text=_(key="back_to_main_menu_button"), callback_data=f"pm:view:{pm_id}"))
+    builder.row(InlineKeyboardButton(
+        text=_(key="back_to_main_menu_button"), callback_data=f"pm:view:{pm_id}"))
     return builder.as_markup()
 
 
@@ -330,10 +369,12 @@ def get_autorenew_cancel_keyboard(lang: str, i18n_instance) -> InlineKeyboardMar
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text=_(key="autorenew_disable_button"), callback_data="autorenew:cancel")
+        InlineKeyboardButton(
+            text=_(key="autorenew_disable_button"), callback_data="autorenew:cancel")
     )
     builder.row(
-        InlineKeyboardButton(text=_(key="menu_my_subscription_inline"), callback_data="main_action:my_subscription")
+        InlineKeyboardButton(text=_(key="menu_my_subscription_inline"),
+                             callback_data="main_action:my_subscription")
     )
     return builder.as_markup()
 
@@ -342,7 +383,9 @@ def get_autorenew_confirm_keyboard(enable: bool, sub_id: int, lang: str, i18n_in
     _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text=_(key="yes_button"), callback_data=f"autorenew:confirm:{sub_id}:{1 if enable else 0}"),
-        InlineKeyboardButton(text=_(key="no_button"), callback_data="main_action:my_subscription"),
+        InlineKeyboardButton(text=_(
+            key="yes_button"), callback_data=f"autorenew:confirm:{sub_id}:{1 if enable else 0}"),
+        InlineKeyboardButton(text=_(key="no_button"),
+                             callback_data="main_action:my_subscription"),
     )
     return builder.as_markup()
