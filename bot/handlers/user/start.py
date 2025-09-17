@@ -440,6 +440,12 @@ async def main_action_callback_handler(
              ) if i18n else (lambda key, **kwargs: key)
 
         text = _("about_text")
+        # Try to remove prior welcome message to keep About page clean
+        try:
+            await callback.bot.delete_message(chat_id=callback.message.chat.id,
+                                              message_id=callback.message.message_id - 1)
+        except Exception:
+            pass
         rows = []
         if settings.SUPPORT_LINK:
             rows.append([types.InlineKeyboardButton(
