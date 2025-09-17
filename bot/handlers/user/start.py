@@ -243,7 +243,7 @@ async def start_command_handler(message: types.Message,
                 pass
 
     # Send welcome message if not disabled
-    if not settings.DISABLE_WELCOME_MESSAGE:
+    if not settings.DISABLE_WELCOME_MESSAGE and not (isinstance(message, types.Message) and message.text and message.text.strip().lower() in {"о нас", "about", "/about"}):
         await message.answer(_(key="welcome", user_name=hd.quote(user.full_name)))
 
     # Auto-apply promo code if provided via start parameter

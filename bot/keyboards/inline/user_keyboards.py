@@ -39,6 +39,9 @@ def get_main_menu_inline_keyboard(
     language_button = InlineKeyboardButton(
         text=_(key="menu_language_settings_inline"),
         callback_data="main_action:language")
+    about_button = InlineKeyboardButton(
+        text=_(key="menu_about_button"),
+        callback_data="main_action:about")
     status_button_list = []
     if settings.SERVER_STATUS_URL:
         status_button_list.append(
@@ -46,15 +49,9 @@ def get_main_menu_inline_keyboard(
                                  url=settings.SERVER_STATUS_URL))
 
     if status_button_list:
-        builder.row(language_button, *status_button_list)
+        builder.row(language_button, about_button, *status_button_list)
     else:
-        builder.row(language_button)
-
-    # About us
-    builder.row(
-        InlineKeyboardButton(text=_(key="menu_about_button"),
-                             callback_data="main_action:about")
-    )
+        builder.row(language_button, about_button)
 
     # Support / Group / Instructions block
     aux_buttons: List[InlineKeyboardButton] = []
