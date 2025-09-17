@@ -50,6 +50,12 @@ def get_main_menu_inline_keyboard(
     else:
         builder.row(language_button)
 
+    # About us
+    builder.row(
+        InlineKeyboardButton(text=_(key="menu_about_button"),
+                             callback_data="main_action:about")
+    )
+
     # Support / Group / Instructions block
     aux_buttons: List[InlineKeyboardButton] = []
     if settings.SUPPORT_LINK:

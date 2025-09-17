@@ -147,10 +147,12 @@ async def start_command_handler(message: types.Message,
             referred_by_user_id = potential_referrer_id
     elif promo_match:
         promo_code_to_apply = promo_match.group(1)
-        logging.info(f"User {user_id} started with promo code: {promo_code_to_apply}")
+        logging.info(
+            f"User {user_id} started with promo code: {promo_code_to_apply}")
     elif ad_param_match:
         ad_start_param = ad_param_match.group(1)
-        logging.info(f"User {user_id} started with ad start param: {ad_start_param}")
+        logging.info(
+            f"User {user_id} started with ad start param: {ad_start_param}")
 
     db_user = await user_dal.get_user_by_id(session, user_id)
     if not db_user:
@@ -174,7 +176,8 @@ async def start_command_handler(message: types.Message,
                 # Send notification about new user registration
                 try:
                     from bot.services.notification_service import NotificationService
-                    notification_service = NotificationService(message.bot, settings, i18n)
+                    notification_service = NotificationService(
+                        message.bot, settings, i18n)
                     await notification_service.notify_new_user_registration(
                         user_id=user_id,
                         username=user.username,
@@ -232,7 +235,8 @@ async def start_command_handler(message: types.Message,
                 await _ad_dal.ensure_attribution(session, user_id=user_id, campaign_id=campaign.ad_campaign_id)
                 await session.commit()
         except Exception as e_attr:
-            logging.error(f"Failed to attribute user {user_id} to ad '{ad_start_param}': {e_attr}")
+            logging.error(
+                f"Failed to attribute user {user_id} to ad '{ad_start_param}': {e_attr}")
             try:
                 await session.rollback()
             except Exception:
@@ -241,52 +245,58 @@ async def start_command_handler(message: types.Message,
     # Send welcome message if not disabled
     if not settings.DISABLE_WELCOME_MESSAGE:
         await message.answer(_(key="welcome", user_name=hd.quote(user.full_name)))
-    
+
     # Auto-apply promo code if provided via start parameter
     if promo_code_to_apply:
         try:
             from bot.services.promo_code_service import PromoCodeService
-            promo_code_service = PromoCodeService(settings, subscription_service, message.bot, i18n)
-            
+            promo_code_service = PromoCodeService(
+                settings, subscription_service, message.bot, i18n)
+
             success, result = await promo_code_service.apply_promo_code(
                 session, user_id, promo_code_to_apply, current_lang
             )
-            
+
             if success:
                 await session.commit()
-                logging.info(f"Auto-applied promo code '{promo_code_to_apply}' for user {user_id}")
-                
+                logging.info(
+                    f"Auto-applied promo code '{promo_code_to_apply}' for user {user_id}")
+
                 # Get updated subscription details
                 active = await subscription_service.get_active_subscription_details(session, user_id)
                 config_link = active.get("config_link") if active else None
                 config_link = config_link or _("config_link_not_available")
-                
+
                 new_end_date = result if isinstance(result, datetime) else None
-                
+
                 promo_success_text = _(
                     "promo_code_applied_success_full",
-                    end_date=(new_end_date.strftime("%d.%m.%Y %H:%M:%S") if new_end_date else "N/A"),
+                    end_date=(new_end_date.strftime(
+                        "%d.%m.%Y %H:%M:%S") if new_end_date else "N/A"),
                     config_link=config_link,
                 )
-                
+
                 from bot.keyboards.inline.user_keyboards import get_connect_and_main_keyboard
                 await message.answer(
                     promo_success_text,
-                    reply_markup=get_connect_and_main_keyboard(current_lang, i18n, settings, config_link),
+                    reply_markup=get_connect_and_main_keyboard(
+                        current_lang, i18n, settings, config_link),
                     parse_mode="HTML"
                 )
-                
+
                 # Don't show main menu if promo was successfully applied
                 return
             else:
                 await session.rollback()
-                logging.warning(f"Failed to auto-apply promo code '{promo_code_to_apply}' for user {user_id}: {result}")
+                logging.warning(
+                    f"Failed to auto-apply promo code '{promo_code_to_apply}' for user {user_id}: {result}")
                 # Continue to show main menu if promo failed
-                
+
         except Exception as e:
-            logging.error(f"Error auto-applying promo code '{promo_code_to_apply}' for user {user_id}: {e}")
+            logging.error(
+                f"Error auto-applying promo code '{promo_code_to_apply}' for user {user_id}: {e}")
             await session.rollback()
-    
+
     await send_main_menu(message,
                          settings,
                          i18n_data,
@@ -422,6 +432,25 @@ async def main_action_callback_handler(
                              subscription_service,
                              session,
                              is_edit=True)
+    elif action == "about":
+        current_lang = i18n_data.get(
+            "current_language", settings.DEFAULT_LANGUAGE)
+        i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
+        _ = (lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs)
+             ) if i18n else (lambda key, **kwargs: key)
+
+        text = _("about_text")
+        rows = []
+        if settings.SUPPORT_LINK:
+            rows.append([types.InlineKeyboardButton(
+                text=_("menu_support_button"), url=settings.SUPPORT_LINK)])
+        rows.append([types.InlineKeyboardButton(
+            text=_("back_to_main_menu_button"), callback_data="main_action:back_to_main")])
+        kb = types.InlineKeyboardMarkup(inline_keyboard=rows)
+        try:
+            await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML", disable_web_page_preview=True)
+        except Exception:
+            await callback.message.answer(text, reply_markup=kb, parse_mode="HTML", disable_web_page_preview=True)
     else:
         i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
         _ = lambda key, **kwargs: i18n.gettext(

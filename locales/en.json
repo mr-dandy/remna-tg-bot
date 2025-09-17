@@ -12,6 +12,7 @@
   "menu_server_status_button": "📊 Status",
   "menu_support_button": "💬 Support",
   "menu_terms_button": "📄 Terms of Service",
+  "menu_about_button": "ℹ️ About us",
   "menu_group_button": "Telegram Group",
   "menu_instructions_button": "📘 Instructions",
   "back_to_main_menu_button": "⬅️ Back",
@@ -421,5 +422,6 @@
   "admin_ads_back_to_menu_hint": "Done. Back to Ads section:",
   "admin_ads_overview": "📈 <b>Ads</b>\n💰 Revenue: <b>{revenue} RUB</b>\n💸 Spent: <b>{cost} RUB</b>",
   "back_to_ads_list_button": "⬅️ Back to list",
-  "admin_ads_card": "📈 <b>Campaign #{id}</b>\nSource: <b>{source}</b>\nstart=<code>{start_param}</code>\nCost: <b>{cost} RUB</b>\nActive: {active}\n\n👥 Starts: <b>{starts}</b>\n🆓 Trials: <b>{trials}</b>\n💳 Payers: <b>{payers}</b>\n💵 Revenue: <b>{revenue} RUB</b>"
+  "admin_ads_card": "📈 <b>Campaign #{id}</b>\nSource: <b>{source}</b>\nstart=<code>{start_param}</code>\nCost: <b>{cost} RUB</b>\nActive: {active}\n\n👥 Starts: <b>{starts}</b>\n🆓 Trials: <b>{trials}</b>\n💳 Payers: <b>{payers}</b>\n💵 Revenue: <b>{revenue} RUB</b>",
+  "about_text": "<b>About VPN Master</b>\n\n⚡ Lightning speed and reliability\nServers up to 10 Gbps — stable over Wi‑Fi and LTE.\n\n🎬 YouTube without ads in 4K\nWatch any videos and sites without lags.\n\n🔟 One subscription — up to 10 devices\nConnect phone, tablet, laptop or even TV at no extra cost.\n\n✔️ No auto‑payments, no card binding\nPay only when you need.\n\n💳 Supported payment methods: Russian cards and USDT.\n\n📑 By using the service you agree to:\n\n• <a href=\"https://wiki.vpnm.org/docs/user-agreement\">User Agreement</a>\n• <a href=\"https://wiki.vpnm.org/docs/policy\">Privacy Policy</a>\n• <a href=\"https://wiki.vpnm.org/docs/terms_of_service\">Terms of Service</a>"
 }
