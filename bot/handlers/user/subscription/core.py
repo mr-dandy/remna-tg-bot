@@ -26,7 +26,8 @@ async def display_subscription_options(event: Union[types.Message, types.Callbac
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
 
-    get_text = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key
+    get_text = lambda key, **kwargs: i18n.gettext(
+        current_lang, key, **kwargs) if i18n else key
 
     if not i18n:
         err_msg = "Language service error."
@@ -40,15 +41,18 @@ async def display_subscription_options(event: Union[types.Message, types.Callbac
         return
 
     currency_symbol_val = settings.DEFAULT_CURRENCY_SYMBOL
-    text_content = get_text("select_subscription_period") if settings.subscription_options else get_text("no_subscription_options_available")
+    text_content = get_text("select_subscription_period") if settings.subscription_options else get_text(
+        "no_subscription_options_available")
 
     reply_markup = (
-        get_subscription_options_keyboard(settings.subscription_options, currency_symbol_val, current_lang, i18n)
+        get_subscription_options_keyboard(
+            settings.subscription_options, currency_symbol_val, current_lang, i18n)
         if settings.subscription_options
         else get_back_to_main_menu_markup(current_lang, i18n)
     )
 
-    target_message_obj = event.message if isinstance(event, types.CallbackQuery) else event
+    target_message_obj = event.message if isinstance(
+        event, types.CallbackQuery) else event
     if not target_message_obj:
         if isinstance(event, types.CallbackQuery):
             try:
@@ -108,7 +112,8 @@ async def my_subscription_command_handler(
         )
         back_markup = get_back_to_main_menu_markup(current_lang, i18n)
 
-        kb = InlineKeyboardMarkup(inline_keyboard=[[buy_button], *back_markup.inline_keyboard])
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[[buy_button], *back_markup.inline_keyboard])
 
         if isinstance(event, types.CallbackQuery):
             try:
@@ -124,27 +129,34 @@ async def my_subscription_command_handler(
         return
 
     end_date = active.get("end_date")
-    days_left = (end_date.date() - datetime.now().date()).days if end_date else 0
+    days_left = (end_date.date() - datetime.now().date()
+                 ).days if end_date else 0
     tribute_hint = ""
     if active.get("status_from_panel", "").lower() == "active":
         local_sub = await subscription_dal.get_active_subscription_by_user_id(session, event.from_user.id)
         if local_sub:
             if local_sub.provider == "tribute":
                 link = None
-                link = settings.tribute_payment_links.get(local_sub.duration_months or 1) if hasattr(settings, "tribute_payment_links") else None
+                link = settings.tribute_payment_links.get(local_sub.duration_months or 1) if hasattr(
+                    settings, "tribute_payment_links") else None
                 tribute_hint = "\n\n" + (
-                    get_text("subscription_tribute_notice_with_link", link=link) if link else get_text("subscription_tribute_notice")
+                    get_text("subscription_tribute_notice_with_link", link=link) if link else get_text(
+                        "subscription_tribute_notice")
                 )
 
     text = get_text(
         "my_subscription_details",
         end_date=end_date.strftime("%Y-%m-%d") if end_date else "N/A",
         days_left=max(0, days_left),
-        status=active.get("status_from_panel", get_text("status_active")).capitalize(),
-        config_link=active.get("config_link") or get_text("config_link_not_available"),
-        traffic_limit=(f"{active['traffic_limit_bytes'] / 2**30:.2f} GB" if active.get("traffic_limit_bytes") else get_text("traffic_unlimited")),
+        status=active.get("status_from_panel", get_text(
+            "status_active")).capitalize(),
+        config_link=active.get("config_link") or get_text(
+            "config_link_not_available"),
+        traffic_limit=(f"{active['traffic_limit_bytes'] / 2**30:.2f} GB" if active.get(
+            "traffic_limit_bytes") else get_text("traffic_unlimited")),
         traffic_used=(
-            f"{active['traffic_used_bytes'] / 2**30:.2f} GB" if active.get("traffic_used_bytes") is not None else get_text("traffic_na")
+            f"{active['traffic_used_bytes'] / 2**30:.2f} GB" if active.get(
+                "traffic_used_bytes") is not None else get_text("traffic_na")
         ),
     )
 
@@ -155,8 +167,17 @@ async def my_subscription_command_handler(
         # Build rows to prepend above the base "back" markup
         prepend_rows = []
 
-        # 1) Mini-app connect button on top if enabled
-        if settings.SUBSCRIPTION_MINI_APP_URL:
+        # 1) Connect button: prefer direct config_link as URL, fallback to Mini App URL
+        config_link = active.get("config_link") if isinstance(
+            active, dict) else None
+        if config_link:
+            prepend_rows.append([
+                InlineKeyboardButton(
+                    text=get_text("connect_button"),
+                    url=config_link,
+                )
+            ])
+        elif settings.SUBSCRIPTION_MINI_APP_URL:
             prepend_rows.append([
                 InlineKeyboardButton(
                     text=get_text("connect_button"),
@@ -167,7 +188,8 @@ async def my_subscription_command_handler(
         # 2) Auto-renew toggle (if supported and not tribute)
         if local_sub and local_sub.provider != "tribute" and getattr(settings, 'YOOKASSA_AUTOPAYMENTS_ENABLED', False):
             toggle_text = (
-                get_text("autorenew_disable_button") if local_sub.auto_renew_enabled else get_text("autorenew_enable_button")
+                get_text("autorenew_disable_button") if local_sub.auto_renew_enabled else get_text(
+                    "autorenew_enable_button")
             )
             prepend_rows.append([
                 InlineKeyboardButton(
@@ -179,7 +201,8 @@ async def my_subscription_command_handler(
         # 3) Payment methods management (when autopayments enabled)
         if getattr(settings, 'YOOKASSA_AUTOPAYMENTS_ENABLED', False):
             prepend_rows.append([
-                InlineKeyboardButton(text=get_text("payment_methods_manage_button"), callback_data="pm:manage")
+                InlineKeyboardButton(text=get_text(
+                    "payment_methods_manage_button"), callback_data="pm:manage")
             ])
 
         if prepend_rows:
@@ -219,7 +242,8 @@ async def toggle_autorenew_handler(
 ):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
-    get_text = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key
+    get_text = lambda key, **kwargs: i18n.gettext(
+        current_lang, key, **kwargs) if i18n else key
 
     try:
         _, payload = callback.data.split(":", 1)
@@ -242,8 +266,10 @@ async def toggle_autorenew_handler(
         return
 
     # Show confirmation popup and inline buttons
-    confirm_text = get_text("autorenew_confirm_enable") if enable else get_text("autorenew_confirm_disable")
-    kb = get_autorenew_confirm_keyboard(enable, sub.subscription_id, current_lang, i18n)
+    confirm_text = get_text("autorenew_confirm_enable") if enable else get_text(
+        "autorenew_confirm_disable")
+    kb = get_autorenew_confirm_keyboard(
+        enable, sub.subscription_id, current_lang, i18n)
     try:
         await callback.message.edit_text(confirm_text, reply_markup=kb)
     except Exception:
@@ -270,7 +296,8 @@ async def confirm_autorenew_handler(
 ):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
-    get_text = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key
+    get_text = lambda key, **kwargs: i18n.gettext(
+        current_lang, key, **kwargs) if i18n else key
 
     try:
         _, _, sub_id_str, enable_str = callback.data.split(":", 3)
@@ -312,7 +339,8 @@ async def autorenew_cancel_from_webhook_button(
 ):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
-    get_text = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key
+    get_text = lambda key, **kwargs: i18n.gettext(
+        current_lang, key, **kwargs) if i18n else key
 
     # Disable auto-renew on the active subscription (non-tribute)
     from db.dal import subscription_dal
@@ -350,5 +378,3 @@ async def connect_command_handler(
 ):
     logging.info(f"User {message.from_user.id} used /connect command.")
     await my_subscription_command_handler(message, i18n_data, settings, panel_service, subscription_service, session, bot)
-
-

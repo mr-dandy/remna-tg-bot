@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     TRIBUTE_LINK_3_MONTHS: Optional[str] = Field(default=None)
     TRIBUTE_LINK_6_MONTHS: Optional[str] = Field(default=None)
     TRIBUTE_LINK_12_MONTHS: Optional[str] = Field(default=None)
+    # Optional universal donate/top-up link (e.g., from Tribute cabinet). Will be used as fallback
+    # and opened with appended user_id parameter to attribute the payment.
+    TRIBUTE_DONATE_LINK: Optional[str] = Field(default=None)
     TRIBUTE_API_KEY: Optional[str] = Field(default=None)
     TRIBUTE_SKIP_NOTIFICATIONS: bool = Field(
         default=True, description="Skip renewal notifications for Tribute payments")
