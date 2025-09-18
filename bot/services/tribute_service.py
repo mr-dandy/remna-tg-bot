@@ -1,3 +1,8 @@
+# flake8: noqa: E501
+"""Tribute webhook handling service.
+
+flake8: noqa: E501
+"""
 import logging
 import hmac
 import hashlib
@@ -15,7 +20,7 @@ from bot.services.panel_api_service import PanelApiService
 from bot.services.referral_service import ReferralService
 from .notification_service import NotificationService
 from bot.keyboards.inline.user_keyboards import get_connect_and_main_keyboard
-from db.dal import payment_dal, user_dal, subscription_dal
+from db.dal import payment_dal, user_dal
 
 
 def convert_period_to_months(period: Optional[str]) -> int:
@@ -111,7 +116,8 @@ class TributeService:
 
         # Tribute sends amount in minor units (kopecks/cents). Convert to major units before persisting.
         amount_value = data.get("amount") or data.get("price")
-        currency = (data.get("currency") or settings.DEFAULT_CURRENCY_SYMBOL or "RUB").upper()
+        currency = (data.get("currency")
+                    or settings.DEFAULT_CURRENCY_SYMBOL or "RUB").upper()
         if amount_value is not None:
             try:
                 amount_minor_units = float(amount_value)
@@ -126,7 +132,8 @@ class TributeService:
                 # Use a unique, idempotent provider payment id per webhook event
                 # Prefer explicit event/payment identifiers if present; otherwise fall back to payload hash suffix
                 candidate_event_id = (
-                    str(data.get("event_id") or data.get("payment_id") or data.get("purchase_id") or data.get("invoice_id") or "")
+                    str(data.get("event_id") or data.get("payment_id") or data.get(
+                        "purchase_id") or data.get("invoice_id") or "")
                 )
                 if candidate_event_id:
                     provider_payment_id = candidate_event_id
@@ -169,7 +176,8 @@ class TributeService:
                 lang = db_user.language_code if db_user and db_user.language_code else settings.DEFAULT_LANGUAGE
                 _ = lambda k, **kw: i18n.gettext(lang, k, **kw)
 
-                applied_ref_days = referral_bonus.get('referee_bonus_applied_days') if referral_bonus else None
+                applied_ref_days = referral_bonus.get(
+                    'referee_bonus_applied_days') if referral_bonus else None
                 final_end = (referral_bonus.get('referee_new_end_date')
                              if referral_bonus else None)
                 if not final_end:
@@ -191,7 +199,8 @@ class TributeService:
                         success_msg = _(
                             "payment_successful_with_referral_bonus_full",
                             months=months,
-                            base_end_date=activation_details["end_date"].strftime('%Y-%m-%d'),
+                            base_end_date=activation_details["end_date"].strftime(
+                                '%Y-%m-%d'),
                             bonus_days=applied_ref_days,
                             final_end_date=final_end.strftime('%Y-%m-%d'),
                             inviter_name=inviter_name_display,
@@ -223,7 +232,8 @@ class TributeService:
 
                 # Send notification about payment
                 try:
-                    notification_service = NotificationService(bot, settings, i18n)
+                    notification_service = NotificationService(
+                        bot, settings, i18n)
                     user = await user_dal.get_user_by_id(session, int(user_id))
                     await notification_service.notify_payment_received(
                         user_id=int(user_id),
@@ -234,10 +244,11 @@ class TributeService:
                         username=user.username if user else None
                     )
                 except Exception as e:
-                    logging.error(f"Failed to send tribute payment notification: {e}")
+                    logging.error(
+                        f"Failed to send tribute payment notification: {e}")
             elif event_name == "cancelled_subscription":
                 await self._handle_tribute_cancellation(session, int(user_id), bot, i18n)
-                
+
             else:
                 await session.commit()
         # Acknowledge to Tribute that webhook was received and processed/accepted
@@ -248,30 +259,30 @@ class TributeService:
         from datetime import datetime, timezone, timedelta
         from db.dal import subscription_dal, user_dal
         from bot.keyboards.inline.user_keyboards import get_subscribe_only_markup
-        
+
         try:
             # Set all user's subscriptions to expire in 1 day (grace period)
             await subscription_dal.set_user_subscriptions_cancelled_with_grace(session, user_id, grace_days=1)
             await session.commit()
-            
+
             # Send notification about cancellation if enabled
             if not self.settings.TRIBUTE_SKIP_CANCELLATION_NOTIFICATIONS:
                 db_user = await user_dal.get_user_by_id(session, user_id)
                 lang = db_user.language_code if db_user and db_user.language_code else self.settings.DEFAULT_LANGUAGE
                 first_name = db_user.first_name or f"User {user_id}" if db_user else f"User {user_id}"
-                
+
                 _ = lambda k, **kw: i18n.gettext(lang, k, **kw) if i18n else k
                 markup = get_subscribe_only_markup(lang, i18n)
-                
+
                 cancellation_msg = _(
                     "tribute_subscription_cancelled",
                     default="🚨 <b>Подписка отменена</b>\n\n"
-                           "Ваша подписка Tribute была отменена. У вас есть 24 часа для восстановления доступа, "
-                           "после чего подписка будет заблокирована.\n\n"
-                           "Для продления подписки нажмите кнопку ниже.",
+                    "Ваша подписка Tribute была отменена. У вас есть 24 часа для восстановления доступа, "
+                    "после чего подписка будет заблокирована.\n\n"
+                    "Для продления подписки нажмите кнопку ниже.",
                     user_name=first_name
                 )
-                
+
                 try:
                     await bot.send_message(
                         int(user_id),
@@ -280,12 +291,15 @@ class TributeService:
                         parse_mode="HTML"
                     )
                 except Exception as e:
-                    logging.error(f"Failed to send tribute cancellation notification to user {user_id}: {e}")
-                    
-            logging.info(f"Tribute subscription cancelled for user {user_id}, grace period set to 1 day")
-            
+                    logging.error(
+                        f"Failed to send tribute cancellation notification to user {user_id}: {e}")
+
+            logging.info(
+                f"Tribute subscription cancelled for user {user_id}, grace period set to 1 day")
+
         except Exception as e:
-            logging.error(f"Error handling tribute cancellation for user {user_id}: {e}")
+            logging.error(
+                f"Error handling tribute cancellation for user {user_id}: {e}")
             await session.rollback()
 
 

@@ -1,4 +1,8 @@
+# flake8: noqa: E501
+"""Payment handlers for subscriptions."""
 import logging
+from urllib.parse import urlparse, urlunparse
+from urllib.parse import parse_qsl, urlencode
 from aiogram import Router, F, types
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +22,8 @@ router = Router(name="user_subscription_payments_router")
 async def select_subscription_period_callback_handler(callback: types.CallbackQuery, settings: Settings, i18n_data: dict, session: AsyncSession):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
-    get_text = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key
+    get_text = lambda key, **kwargs: i18n.gettext(
+        current_lang, key, **kwargs) if i18n else key
 
     if not i18n or not callback.message:
         try:
@@ -30,7 +35,8 @@ async def select_subscription_period_callback_handler(callback: types.CallbackQu
     try:
         months = int(callback.data.split(":")[-1])
     except (ValueError, IndexError):
-        logging.error(f"Invalid subscription period in callback_data: {callback.data}")
+        logging.error(
+            f"Invalid subscription period in callback_data: {callback.data}")
         try:
             await callback.answer(get_text("error_try_again"), show_alert=True)
         except Exception:
@@ -50,7 +56,36 @@ async def select_subscription_period_callback_handler(callback: types.CallbackQu
 
     currency_symbol_val = settings.DEFAULT_CURRENCY_SYMBOL
     text_content = get_text("choose_payment_method")
+    # Для Tribute используем донат-ссылки из настроек (как у bedolaga)
     tribute_url = settings.tribute_payment_links.get(months)
+    if not tribute_url and getattr(settings, 'TRIBUTE_DONATE_LINK', None):
+        tribute_url = settings.TRIBUTE_DONATE_LINK
+
+    # аккуратно подставляем сумму (в минорных единицах) и идентификатор пользователя
+    if tribute_url:
+        try:
+            user_id_val = callback.from_user.id
+        except Exception:
+            user_id_val = None
+        try:
+            amount_minor = int(float(price_rub) * 100)
+        except Exception:
+            amount_minor = None
+
+        try:
+            parsed = urlparse(tribute_url)
+            query = dict(parse_qsl(parsed.query))
+            if user_id_val is not None and 'telegram_user_id' not in query:
+                query['telegram_user_id'] = str(user_id_val)
+            if amount_minor is not None and 'amount' not in query:
+                query['amount'] = str(amount_minor)
+            if 'period' not in query:
+                query['period'] = str(months)
+            new_query = urlencode(query, doseq=True)
+            tribute_url = urlunparse(parsed._replace(query=new_query))
+        except Exception:
+            # Если не удалось распарсить/склеить URL — оставляем исходный
+            pass
     stars_price = settings.stars_subscription_options.get(months)
     reply_markup = get_payment_method_keyboard(
         months,
@@ -80,7 +115,8 @@ async def select_subscription_period_callback_handler(callback: types.CallbackQu
 async def pay_yk_callback_handler(callback: types.CallbackQuery, settings: Settings, i18n_data: dict, yookassa_service: YooKassaService, session: AsyncSession):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
-    get_text = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key
+    get_text = lambda key, **kwargs: i18n.gettext(
+        current_lang, key, **kwargs) if i18n else key
 
     if not i18n or not callback.message:
         try:
@@ -113,7 +149,8 @@ async def pay_yk_callback_handler(callback: types.CallbackQuery, settings: Setti
         return
 
     user_id = callback.from_user.id
-    payment_description = get_text("payment_description_subscription", months=months)
+    payment_description = get_text(
+        "payment_description_subscription", months=months)
     currency_code_for_yk = "RUB"
 
     payment_record_data = {
@@ -167,7 +204,8 @@ async def pay_yk_callback_handler(callback: types.CallbackQuery, settings: Setti
         metadata=yookassa_metadata,
         receipt_email=receipt_email_for_yk,
         # Save method only when autopayments are enabled
-        save_payment_method=bool(getattr(settings, 'YOOKASSA_AUTOPAYMENTS_ENABLED', False)),
+        save_payment_method=bool(
+            getattr(settings, 'YOOKASSA_AUTOPAYMENTS_ENABLED', False)),
     )
 
     if payment_response_yk and payment_response_yk.get("confirmation_url"):
@@ -189,7 +227,8 @@ async def pay_yk_callback_handler(callback: types.CallbackQuery, settings: Setti
                         else None
                     )
                 else:
-                    display_network = title or (pm_type.upper() if pm_type else "Payment method")
+                    display_network = title or (
+                        pm_type.upper() if pm_type else "Payment method")
                     display_last4 = None
                 await user_billing_dal.upsert_yk_payment_method(
                     session,
@@ -213,7 +252,8 @@ async def pay_yk_callback_handler(callback: types.CallbackQuery, settings: Setti
                 await session.commit()
         except Exception:
             await session.rollback()
-            logging.exception("Failed to save YooKassa payment method preliminarily")
+            logging.exception(
+                "Failed to save YooKassa payment method preliminarily")
         try:
             await payment_dal.update_payment_status_by_db_id(
                 session,
@@ -237,7 +277,8 @@ async def pay_yk_callback_handler(callback: types.CallbackQuery, settings: Setti
 
         await callback.message.edit_text(
             get_text(key="payment_link_message", months=months),
-            reply_markup=get_payment_url_keyboard(payment_response_yk["confirmation_url"], current_lang, i18n),
+            reply_markup=get_payment_url_keyboard(
+                payment_response_yk["confirmation_url"], current_lang, i18n),
             disable_web_page_preview=False,
         )
     else:
@@ -271,7 +312,8 @@ async def pay_crypto_callback_handler(
 ):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
-    get_text = (lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key)
+    get_text = (lambda key, **kwargs: i18n.gettext(current_lang,
+                key, **kwargs) if i18n else key)
 
     if not i18n or not callback.message:
         try:
@@ -300,7 +342,8 @@ async def pay_crypto_callback_handler(
         return
 
     user_id = callback.from_user.id
-    payment_description = get_text("payment_description_subscription", months=months)
+    payment_description = get_text(
+        "payment_description_subscription", months=months)
 
     invoice_url = await cryptopay_service.create_invoice(
         session=session,
@@ -314,14 +357,16 @@ async def pay_crypto_callback_handler(
         try:
             await callback.message.edit_text(
                 get_text(key="payment_link_message", months=months),
-                reply_markup=get_payment_url_keyboard(invoice_url, current_lang, i18n),
+                reply_markup=get_payment_url_keyboard(
+                    invoice_url, current_lang, i18n),
                 disable_web_page_preview=False,
             )
         except Exception:
             try:
                 await callback.message.answer(
                     get_text(key="payment_link_message", months=months),
-                    reply_markup=get_payment_url_keyboard(invoice_url, current_lang, i18n),
+                    reply_markup=get_payment_url_keyboard(
+                        invoice_url, current_lang, i18n),
                     disable_web_page_preview=False,
                 )
             except Exception:
@@ -348,7 +393,8 @@ async def pay_stars_callback_handler(
 ):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
-    get_text = (lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs) if i18n else key)
+    get_text = (lambda key, **kwargs: i18n.gettext(current_lang,
+                key, **kwargs) if i18n else key)
 
     if not i18n or not callback.message:
         try:
@@ -377,7 +423,8 @@ async def pay_stars_callback_handler(
         return
 
     user_id = callback.from_user.id
-    payment_description = get_text("payment_description_subscription", months=months)
+    payment_description = get_text(
+        "payment_description_subscription", months=months)
 
     payment_db_id = await stars_service.create_invoice(
         session=session,
@@ -426,7 +473,8 @@ async def handle_successful_stars_payment(
     except Exception:
         return
 
-    stars_amount = int(message.successful_payment.total_amount) if message.successful_payment else 0
+    stars_amount = int(
+        message.successful_payment.total_amount) if message.successful_payment else 0
     await stars_service.process_successful_payment(
         session=session,
         message=message,
@@ -435,4 +483,3 @@ async def handle_successful_stars_payment(
         stars_amount=stars_amount,
         i18n_data=i18n_data,
     )
-

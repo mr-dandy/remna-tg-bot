@@ -1,8 +1,9 @@
+# flake8: noqa: E501
 import logging
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, ValidationError, computed_field, field_validator
 import os
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 
 
 class Settings(BaseSettings):
@@ -79,6 +80,11 @@ class Settings(BaseSettings):
     # and opened with appended user_id parameter to attribute the payment.
     TRIBUTE_DONATE_LINK: Optional[str] = Field(default=None)
     TRIBUTE_API_KEY: Optional[str] = Field(default=None)
+    TRIBUTE_API_BASE_URL: str = Field(default="https://tribute.tg")
+    TRIBUTE_PRODUCT_ID_1_MONTH: Optional[int] = Field(default=None)
+    TRIBUTE_PRODUCT_ID_3_MONTHS: Optional[int] = Field(default=None)
+    TRIBUTE_PRODUCT_ID_6_MONTHS: Optional[int] = Field(default=None)
+    TRIBUTE_PRODUCT_ID_12_MONTHS: Optional[int] = Field(default=None)
     TRIBUTE_SKIP_NOTIFICATIONS: bool = Field(
         default=True, description="Skip renewal notifications for Tribute payments")
     TRIBUTE_SKIP_CANCELLATION_NOTIFICATIONS: bool = Field(
