@@ -125,12 +125,22 @@ async def pay_yk_callback_handler(callback: types.CallbackQuery, settings: Setti
             pass
         return
 
-    if not yookassa_service or not yookassa_service.configured:
-        logging.error("YooKassa service is not configured or unavailable.")
-        target_msg_edit = callback.message
-        await target_msg_edit.edit_text(get_text("payment_service_unavailable"))
+
+@router.callback_query(F.data.startswith("pay_tribute:"))
+async def pay_tribute_callback_handler(
+    callback: types.CallbackQuery,
+    settings: Settings,
+    i18n_data: dict,
+    session: AsyncSession,
+):
+    current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
+    i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
+    get_text = (lambda key, **kwargs: i18n.gettext(current_lang,
+                key, **kwargs) if i18n else key)
+
+    if not i18n or not callback.message:
         try:
-            await callback.answer(get_text("payment_service_unavailable_alert"), show_alert=True)
+            await callback.answer(get_text("error_occurred_try_again"), show_alert=True)
         except Exception:
             pass
         return
@@ -141,163 +151,77 @@ async def pay_yk_callback_handler(callback: types.CallbackQuery, settings: Setti
         months = int(months_str)
         price_rub = float(price_str)
     except (ValueError, IndexError):
-        logging.error(f"Invalid pay_yk data in callback: {callback.data}")
         try:
             await callback.answer(get_text("error_try_again"), show_alert=True)
         except Exception:
             pass
         return
 
-    user_id = callback.from_user.id
-    payment_description = get_text(
-        "payment_description_subscription", months=months)
-    currency_code_for_yk = "RUB"
-
-    payment_record_data = {
-        "user_id": user_id,
-        "amount": price_rub,
-        "currency": currency_code_for_yk,
-        "status": "pending_yookassa",
-        "description": payment_description,
-        "subscription_duration_months": months,
-    }
-
-    db_payment_record = None
-    try:
-        db_payment_record = await payment_dal.create_payment_record(session, payment_record_data)
-        await session.commit()
-        logging.info(
-            f"Payment record {db_payment_record.payment_id} created for user {user_id} with status 'pending_yookassa'."
-        )
-    except Exception as e_db_payment:
-        await session.rollback()
-        logging.error(
-            f"Failed to create payment record in DB for user {user_id}: {e_db_payment}",
-            exc_info=True,
-        )
-        await callback.message.edit_text(get_text("error_creating_payment_record"))
+    # Сформировать ссылку Tribute (донат) с префиллом суммы, user_id и периода
+    tribute_url = settings.tribute_payment_links.get(months)
+    if not tribute_url and getattr(settings, 'TRIBUTE_DONATE_LINK', None):
+        tribute_url = settings.TRIBUTE_DONATE_LINK
+    if tribute_url:
         try:
-            await callback.answer(get_text("error_try_again"), show_alert=True)
+            user_id_val = callback.from_user.id
+        except Exception:
+            user_id_val = None
+        try:
+            amount_minor = int(float(price_rub) * 100)
+        except Exception:
+            amount_minor = None
+
+        try:
+            parsed = urlparse(tribute_url)
+            query = dict(parse_qsl(parsed.query))
+            if user_id_val is not None and 'telegram_user_id' not in query:
+                query['telegram_user_id'] = str(user_id_val)
+            if amount_minor is not None and 'amount' not in query:
+                query['amount'] = str(amount_minor)
+            if 'period' not in query:
+                query['period'] = str(months)
+            new_query = urlencode(query, doseq=True)
+            tribute_url = urlunparse(parsed._replace(query=new_query))
         except Exception:
             pass
-        return
 
-    if not db_payment_record:
-        await callback.message.edit_text(get_text("error_creating_payment_record"))
-        try:
-            await callback.answer(get_text("error_try_again"), show_alert=True)
-        except Exception:
-            pass
-        return
-
-    yookassa_metadata = {
-        "user_id": str(user_id),
-        "subscription_months": str(months),
-        "payment_db_id": str(db_payment_record.payment_id),
-    }
-    receipt_email_for_yk = settings.YOOKASSA_DEFAULT_RECEIPT_EMAIL
-
-    payment_response_yk = await yookassa_service.create_payment(
-        amount=price_rub,
-        currency=currency_code_for_yk,
-        description=payment_description,
-        metadata=yookassa_metadata,
-        receipt_email=receipt_email_for_yk,
-        # Save method only when autopayments are enabled
-        save_payment_method=bool(
-            getattr(settings, 'YOOKASSA_AUTOPAYMENTS_ENABLED', False)),
+    # Текст-инструкция
+    instruction_text = (
+        "💳 <b>Оплата банковской картой</b>\n\n"
+        "• Введите сумму кратную тарифу который вы хотите подключить\n"
+        "• Выберите \"Перейти к оплате\"\n\n"
+        "• 🚨 НЕ ОТПРАВЛЯЙТЕ ПЛАТЕЖ АНОНИМНО!"
     )
 
-    if payment_response_yk and payment_response_yk.get("confirmation_url"):
-        pm = payment_response_yk.get("payment_method")
+    # Показать кнопку перехода
+    if tribute_url:
         try:
-            if pm and pm.get("id"):
-                pm_type = pm.get("type")
-                title = pm.get("title")
-                card = pm.get("card") or {}
-                account_number = pm.get("account_number") or pm.get("account")
-                if isinstance(card, dict) and (pm_type or "").lower() in {"bank_card", "bank-card", "card"}:
-                    display_network = card.get("card_type") or title or "Card"
-                    display_last4 = card.get("last4")
-                elif (pm_type or "").lower() in {"yoo_money", "yoomoney", "yoo-money", "wallet"}:
-                    display_network = "YooMoney"
-                    display_last4 = (
-                        account_number[-4:]
-                        if isinstance(account_number, str) and len(account_number) >= 4
-                        else None
-                    )
-                else:
-                    display_network = title or (
-                        pm_type.upper() if pm_type else "Payment method")
-                    display_last4 = None
-                await user_billing_dal.upsert_yk_payment_method(
-                    session,
-                    user_id=user_id,
-                    payment_method_id=pm["id"],
-                    card_last4=display_last4,
-                    card_network=display_network,
-                )
-                try:
-                    await user_billing_dal.upsert_user_payment_method(
-                        session,
-                        user_id=user_id,
-                        provider_payment_method_id=pm["id"],
-                        provider="yookassa",
-                        card_last4=display_last4,
-                        card_network=display_network,
-                        set_default=True,
-                    )
-                except Exception:
-                    pass
-                await session.commit()
+            await callback.message.edit_text(
+                instruction_text,
+                reply_markup=get_payment_url_keyboard(
+                    tribute_url, current_lang, i18n),
+                parse_mode="HTML",
+                disable_web_page_preview=False,
+            )
         except Exception:
-            await session.rollback()
-            logging.exception(
-                "Failed to save YooKassa payment method preliminarily")
-        try:
-            await payment_dal.update_payment_status_by_db_id(
-                session,
-                payment_db_id=db_payment_record.payment_id,
-                new_status=payment_response_yk.get("status", "pending"),
-                yk_payment_id=payment_response_yk.get("id"),
-            )
-            await session.commit()
-        except Exception as e_db_update_ykid:
-            await session.rollback()
-            logging.error(
-                f"Failed to update payment record {db_payment_record.payment_id} with YK ID: {e_db_update_ykid}",
-                exc_info=True,
-            )
-            await callback.message.edit_text(get_text("error_payment_gateway_link_failed"))
             try:
-                await callback.answer(get_text("error_try_again"), show_alert=True)
+                await callback.message.answer(
+                    instruction_text,
+                    reply_markup=get_payment_url_keyboard(
+                        tribute_url, current_lang, i18n),
+                    parse_mode="HTML",
+                    disable_web_page_preview=False,
+                )
             except Exception:
                 pass
-            return
-
-        await callback.message.edit_text(
-            get_text(key="payment_link_message", months=months),
-            reply_markup=get_payment_url_keyboard(
-                payment_response_yk["confirmation_url"], current_lang, i18n),
-            disable_web_page_preview=False,
-        )
-    else:
         try:
-            await payment_dal.update_payment_status_by_db_id(session, db_payment_record.payment_id, "failed_creation")
-            await session.commit()
-        except Exception as e_db_fail_create:
-            await session.rollback()
-            logging.error(
-                f"Additionally failed to update payment record to 'failed_creation': {e_db_fail_create}",
-                exc_info=True,
-            )
-        logging.error(
-            f"Failed to create payment in YooKassa for user {user_id}, payment_db_id {db_payment_record.payment_id}. Response: {payment_response_yk}"
-        )
-        await callback.message.edit_text(get_text("error_payment_gateway"))
+            await callback.answer()
+        except Exception:
+            pass
+        return
 
     try:
-        await callback.answer()
+        await callback.answer(get_text("payment_service_unavailable_alert"), show_alert=True)
     except Exception:
         pass
 

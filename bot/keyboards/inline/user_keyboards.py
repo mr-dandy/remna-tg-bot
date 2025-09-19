@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
 from aiogram.types import InlineKeyboardMarkup, WebAppInfo
 from typing import Dict, Optional, List, Tuple
@@ -10,7 +11,9 @@ def get_main_menu_inline_keyboard(
         i18n_instance,
         settings: Settings,
         show_trial_button: bool = False) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
 
     if show_trial_button and settings.TRIAL_ENABLED:
@@ -62,8 +65,12 @@ def get_main_menu_inline_keyboard(
         aux_buttons.append(InlineKeyboardButton(
             text=_(key="menu_group_button"), url=settings.GROUP_LINK))
     if getattr(settings, "INSTRUCTIONS_URL", None):
-        aux_buttons.append(InlineKeyboardButton(
-            text=_(key="menu_instructions_button"), url=settings.INSTRUCTIONS_URL))
+        aux_buttons.append(
+            InlineKeyboardButton(
+                text=_(key="menu_instructions_button"),
+                url=settings.INSTRUCTIONS_URL,
+            )
+        )
     if aux_buttons:
         for i in range(0, len(aux_buttons), 2):
             builder.row(*aux_buttons[i:i+2])
@@ -78,8 +85,9 @@ def get_main_menu_inline_keyboard(
 
 def get_language_selection_keyboard(i18n_instance,
                                     current_lang: str) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(current_lang, key, **kwargs
-                                                    )
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(current_lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.button(text=f"🇬🇧 English {'✅' if current_lang == 'en' else ''}",
                    callback_data="set_lang_en")
@@ -93,7 +101,9 @@ def get_language_selection_keyboard(i18n_instance,
 
 def get_trial_confirmation_keyboard(lang: str,
                                     i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.button(text=_(key="trial_confirm_activate_button"),
                    callback_data="trial_action:confirm_activate")
@@ -103,10 +113,14 @@ def get_trial_confirmation_keyboard(lang: str,
     return builder.as_markup()
 
 
-def get_subscription_options_keyboard(subscription_options: Dict[
-        int, Optional[int]], currency_symbol_val: str, lang: str,
+def get_subscription_options_keyboard(
+        subscription_options: Dict[int, Optional[int]],
+        currency_symbol_val: str,
+        lang: str,
         i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     if subscription_options:
         for months, price in subscription_options.items():
@@ -124,18 +138,25 @@ def get_subscription_options_keyboard(subscription_options: Dict[
     return builder.as_markup()
 
 
-def get_payment_method_keyboard(months: int, price: float,
-                                tribute_url: Optional[str],
-                                stars_price: Optional[int],
-                                currency_symbol_val: str, lang: str,
-                                i18n_instance, settings: Settings) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+def get_payment_method_keyboard(
+        months: int,
+        price: float,
+        tribute_url: Optional[str],
+        stars_price: Optional[int],
+        currency_symbol_val: str,
+        lang: str,
+        i18n_instance,
+        settings: Settings) -> InlineKeyboardMarkup:
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     if settings.STARS_ENABLED and stars_price is not None:
         builder.button(text=_("pay_with_stars_button"),
                        callback_data=f"pay_stars:{months}:{stars_price}")
     if settings.TRIBUTE_ENABLED and tribute_url:
-        builder.button(text=_("pay_with_tribute_button"), url=tribute_url)
+        builder.button(text=_("pay_with_tribute_button"),
+                       callback_data=f"pay_tribute:{months}:{price}")
     if settings.YOOKASSA_ENABLED:
         builder.button(text=_("pay_with_yookassa_button"),
                        callback_data=f"pay_yk:{months}:{price}")
@@ -150,7 +171,9 @@ def get_payment_method_keyboard(months: int, price: float,
 
 def get_payment_url_keyboard(payment_url: str, lang: str,
                              i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.button(text=_(key="pay_button"), url=payment_url)
     builder.button(text=_(key="back_to_main_menu_button"),
@@ -161,7 +184,9 @@ def get_payment_url_keyboard(payment_url: str, lang: str,
 
 def get_referral_link_keyboard(lang: str,
                                i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.button(text=_(key="referral_share_message_button"),
                    callback_data="referral_action:share_message")
@@ -173,7 +198,9 @@ def get_referral_link_keyboard(lang: str,
 
 def get_back_to_main_menu_markup(lang: str,
                                  i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.button(text=_(key="back_to_main_menu_button"),
                    callback_data="main_action:back_to_main")
@@ -181,7 +208,9 @@ def get_back_to_main_menu_markup(lang: str,
 
 
 def get_subscribe_only_markup(lang: str, i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.button(text=_(key="menu_subscribe_inline"),
                    callback_data="main_action:subscribe")
@@ -192,7 +221,9 @@ def get_user_banned_keyboard(support_link: Optional[str], lang: str,
                              i18n_instance) -> Optional[InlineKeyboardMarkup]:
     if not support_link:
         return None
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.button(text=_(key="menu_support_button"), url=support_link)
     return builder.as_markup()
@@ -204,7 +235,9 @@ def get_connect_and_main_keyboard(
         settings: Settings,
         config_link: Optional[str]) -> InlineKeyboardMarkup:
     """Keyboard with a connect button and a back to main menu button."""
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
 
     # Prefer opening subscription page directly via external URL if config_link is available
@@ -240,11 +273,16 @@ def get_connect_and_main_keyboard(
     # Duplicate helpful links here as well
     aux_buttons2: List[InlineKeyboardButton] = []
     if getattr(settings, "GROUP_LINK", None):
-        aux_buttons2.append(InlineKeyboardButton(
-            text=_("menu_group_button"), url=settings.GROUP_LINK))
+        aux_buttons2.append(
+            InlineKeyboardButton(
+                text=_("menu_group_button"), url=settings.GROUP_LINK)
+        )
     if getattr(settings, "INSTRUCTIONS_URL", None):
-        aux_buttons2.append(InlineKeyboardButton(
-            text=_("menu_instructions_button"), url=settings.INSTRUCTIONS_URL))
+        aux_buttons2.append(
+            InlineKeyboardButton(
+                text=_("menu_instructions_button"), url=settings.INSTRUCTIONS_URL
+            )
+        )
     if settings.SUPPORT_LINK:
         aux_buttons2.append(InlineKeyboardButton(
             text=_("menu_support_button"), url=settings.SUPPORT_LINK))
@@ -257,7 +295,9 @@ def get_connect_and_main_keyboard(
 
 def get_payment_methods_manage_keyboard(lang: str, i18n_instance, has_card: bool) -> InlineKeyboardMarkup:
     """Deprecated in favor of get_payment_methods_list_keyboard. Kept for backward compatibility."""
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
@@ -281,7 +321,9 @@ def get_payment_methods_list_keyboard(
     cards: list of tuples (payment_method_id, display_title)
     page: 0-based page index
     """
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     per_page = 5
     total = len(cards)
@@ -312,7 +354,9 @@ def get_payment_methods_list_keyboard(
 
 
 def get_payment_method_delete_confirm_keyboard(pm_id: str, lang: str, i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text=_(key="yes_button"),
@@ -324,7 +368,9 @@ def get_payment_method_delete_confirm_keyboard(pm_id: str, lang: str, i18n_insta
 
 
 def get_payment_method_details_keyboard(pm_id: str, lang: str, i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text=_(
@@ -342,7 +388,9 @@ def get_payment_method_details_keyboard(pm_id: str, lang: str, i18n_instance) ->
 
 
 def get_bind_url_keyboard(bind_url: str, lang: str, i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.button(text=_(key="payment_method_bind_button"), url=bind_url)
     builder.button(text=_(key="back_to_main_menu_button"),
@@ -352,7 +400,9 @@ def get_bind_url_keyboard(bind_url: str, lang: str, i18n_instance) -> InlineKeyb
 
 
 def get_back_to_payment_methods_keyboard(lang: str, i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(
         text=_(key="back_to_main_menu_button"), callback_data="pm:list:0"))
@@ -360,7 +410,9 @@ def get_back_to_payment_methods_keyboard(lang: str, i18n_instance) -> InlineKeyb
 
 
 def get_back_to_payment_method_details_keyboard(pm_id: str, lang: str, i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     # Back one step: return to specific payment method details
     builder.row(InlineKeyboardButton(
@@ -369,7 +421,9 @@ def get_back_to_payment_method_details_keyboard(pm_id: str, lang: str, i18n_inst
 
 
 def get_autorenew_cancel_keyboard(lang: str, i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
@@ -383,7 +437,9 @@ def get_autorenew_cancel_keyboard(lang: str, i18n_instance) -> InlineKeyboardMar
 
 
 def get_autorenew_confirm_keyboard(enable: bool, sub_id: int, lang: str, i18n_instance) -> InlineKeyboardMarkup:
-    _ = lambda key, **kwargs: i18n_instance.gettext(lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text=_(
