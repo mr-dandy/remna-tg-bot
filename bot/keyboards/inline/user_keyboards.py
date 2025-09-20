@@ -170,12 +170,16 @@ def get_payment_method_keyboard(
 
 
 def get_payment_url_keyboard(payment_url: str, lang: str,
-                             i18n_instance) -> InlineKeyboardMarkup:
+                             i18n_instance, *, as_web_app: bool = False) -> InlineKeyboardMarkup:
 
     def _(key, **kwargs):
         return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
-    builder.button(text=_(key="pay_button"), url=payment_url)
+    if as_web_app:
+        builder.button(text=_(key="pay_button"),
+                       web_app=WebAppInfo(url=payment_url))
+    else:
+        builder.button(text=_(key="pay_button"), url=payment_url)
     builder.button(text=_(key="back_to_main_menu_button"),
                    callback_data="main_action:back_to_main")
     builder.adjust(1)

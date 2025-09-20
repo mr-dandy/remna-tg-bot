@@ -199,7 +199,7 @@ async def pay_tribute_callback_handler(
             await callback.message.edit_text(
                 instruction_text,
                 reply_markup=get_payment_url_keyboard(
-                    tribute_url, current_lang, i18n),
+                    tribute_url, current_lang, i18n, as_web_app=True),
                 parse_mode="HTML",
                 disable_web_page_preview=False,
             )
@@ -208,7 +208,7 @@ async def pay_tribute_callback_handler(
                 await callback.message.answer(
                     instruction_text,
                     reply_markup=get_payment_url_keyboard(
-                        tribute_url, current_lang, i18n),
+                        tribute_url, current_lang, i18n, as_web_app=True),
                     parse_mode="HTML",
                     disable_web_page_preview=False,
                 )
