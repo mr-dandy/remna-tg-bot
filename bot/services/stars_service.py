@@ -12,6 +12,7 @@ from .referral_service import ReferralService
 from bot.middlewares.i18n import JsonI18n
 from .notification_service import NotificationService
 from bot.keyboards.inline.user_keyboards import get_connect_and_main_keyboard
+import os
 
 
 class StarsService:
@@ -104,8 +105,10 @@ class StarsService:
         )
         await session.commit()
 
-        applied_days = referral_bonus.get("referee_bonus_applied_days") if referral_bonus else None
-        final_end = referral_bonus.get("referee_new_end_date") if referral_bonus else None
+        applied_days = referral_bonus.get(
+            "referee_bonus_applied_days") if referral_bonus else None
+        final_end = referral_bonus.get(
+            "referee_new_end_date") if referral_bonus else None
         if not final_end:
             final_end = activation_details["end_date"]
 
@@ -131,7 +134,8 @@ class StarsService:
             success_msg = _(
                 "payment_successful_with_referral_bonus_full",
                 months=months,
-                base_end_date=activation_details["end_date"].strftime('%Y-%m-%d'),
+                base_end_date=activation_details["end_date"].strftime(
+                    '%Y-%m-%d'),
                 bonus_days=applied_days,
                 final_end_date=final_end.strftime('%Y-%m-%d'),
                 inviter_name=inviter_name_display,
@@ -148,20 +152,41 @@ class StarsService:
             current_lang, i18n, self.settings, config_link
         )
         try:
-            await self.bot.send_message(
-                message.from_user.id,
-                success_msg,
-                reply_markup=markup,
-                parse_mode="HTML",
-                disable_web_page_preview=True,
-            )
+            image_ref = self.settings.PAYMENT_SUCCESS_IMAGE_PATH
+            if image_ref:
+                if os.path.exists(image_ref):
+                    from aiogram.types import FSInputFile
+                    await self.bot.send_photo(
+                        message.from_user.id,
+                        photo=FSInputFile(image_ref),
+                        caption=success_msg,
+                        reply_markup=markup,
+                        parse_mode="HTML",
+                    )
+                else:
+                    await self.bot.send_photo(
+                        message.from_user.id,
+                        photo=image_ref,
+                        caption=success_msg,
+                        reply_markup=markup,
+                        parse_mode="HTML",
+                    )
+            else:
+                await self.bot.send_message(
+                    message.from_user.id,
+                    success_msg,
+                    reply_markup=markup,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True,
+                )
         except Exception as e_send:
             logging.error(
                 f"Failed to send stars payment success message: {e_send}")
 
         # Send notification about payment
         try:
-            notification_service = NotificationService(self.bot, self.settings, self.i18n)
+            notification_service = NotificationService(
+                self.bot, self.settings, self.i18n)
             user = await user_dal.get_user_by_id(session, message.from_user.id)
             await notification_service.notify_payment_received(
                 user_id=message.from_user.id,
@@ -173,4 +198,3 @@ class StarsService:
             )
         except Exception as e:
             logging.error(f"Failed to send stars payment notification: {e}")
-

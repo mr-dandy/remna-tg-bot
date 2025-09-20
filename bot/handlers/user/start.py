@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 from aiogram import Router, F, types, Bot
 from aiogram.utils.text_decorations import html_decoration as hd
@@ -242,9 +243,23 @@ async def start_command_handler(message: types.Message,
             except Exception:
                 pass
 
-    # Send welcome message if not disabled
+    # Send welcome message (optionally with image) if not disabled
     if not settings.DISABLE_WELCOME_MESSAGE and not (isinstance(message, types.Message) and message.text and message.text.strip().lower() in {"о нас", "about", "/about"}):
-        await message.answer(_(key="welcome", user_name=hd.quote(user.full_name)))
+        welcome_text = _(key="welcome", user_name=hd.quote(user.full_name))
+        image_ref = getattr(settings, "WELCOME_IMAGE_URL", None)
+        if image_ref:
+            try:
+                # If local path exists – use FSInputFile; otherwise pass URL directly
+                if os.path.exists(image_ref):
+                    from aiogram.types import FSInputFile
+                    await message.answer_photo(photo=FSInputFile(image_ref), caption=welcome_text)
+                else:
+                    await message.answer_photo(photo=image_ref, caption=welcome_text)
+            except Exception as e:
+                logging.warning(f"Failed to send welcome image: {e}")
+                await message.answer(welcome_text)
+        else:
+            await message.answer(welcome_text)
 
     # Auto-apply promo code if provided via start parameter
     if promo_code_to_apply:

@@ -21,6 +21,7 @@ from bot.services.referral_service import ReferralService
 from .notification_service import NotificationService
 from bot.keyboards.inline.user_keyboards import get_connect_and_main_keyboard
 from db.dal import payment_dal, user_dal
+import os
 
 
 def convert_period_to_months(period: Optional[str]) -> int:
@@ -218,14 +219,34 @@ class TributeService:
                     )
 
                     try:
-                        # Use user's DB language in success messages prepared above
-                        await bot.send_message(
-                            int(user_id),
-                            success_msg,
-                            reply_markup=markup,
-                            parse_mode="HTML",
-                            disable_web_page_preview=True,
-                        )
+                        image_ref = settings.PAYMENT_SUCCESS_IMAGE_PATH
+                        if image_ref:
+                            if os.path.exists(image_ref):
+                                from aiogram.types import FSInputFile
+                                await bot.send_photo(
+                                    int(user_id),
+                                    photo=FSInputFile(image_ref),
+                                    caption=success_msg,
+                                    reply_markup=markup,
+                                    parse_mode="HTML",
+                                )
+                            else:
+                                await bot.send_photo(
+                                    int(user_id),
+                                    photo=image_ref,
+                                    caption=success_msg,
+                                    reply_markup=markup,
+                                    parse_mode="HTML",
+                                )
+                        else:
+                            # Use user's DB language in success messages prepared above
+                            await bot.send_message(
+                                int(user_id),
+                                success_msg,
+                                reply_markup=markup,
+                                parse_mode="HTML",
+                                disable_web_page_preview=True,
+                            )
                     except Exception as e:
                         logging.error(
                             f"Failed to send Tribute payment success message to user {user_id}: {e}")

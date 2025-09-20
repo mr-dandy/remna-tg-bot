@@ -18,6 +18,7 @@ from datetime import datetime
 from bot.middlewares.i18n import JsonI18n
 
 from .start import send_main_menu
+import os
 
 router = Router(name="user_promo_router")
 
@@ -46,17 +47,35 @@ async def prompt_promo_code_input(callback: types.CallbackQuery,
                               show_alert=True)
         return
 
-    try:
-        await callback.message.edit_text(
-            text=_(key="promo_code_prompt"),
-            reply_markup=get_back_to_main_menu_markup(current_lang, i18n))
-    except Exception as e_edit:
-        logging.warning(
-            f"Failed to edit message for promo prompt: {e_edit}. Sending new one."
-        )
-        await callback.message.answer(
-            text=_(key="promo_code_prompt"),
-            reply_markup=get_back_to_main_menu_markup(current_lang, i18n))
+    prompt_text = _(key="promo_code_prompt")
+    kb = get_back_to_main_menu_markup(current_lang, i18n)
+
+    image_ref = getattr(settings, "SALES_SECTION_IMAGE_PATH", None)
+    sent_with_image = False
+    if image_ref:
+        try:
+            if os.path.exists(image_ref):
+                from aiogram.types import FSInputFile
+                await callback.message.answer_photo(photo=FSInputFile(image_ref), caption=prompt_text, reply_markup=kb)
+            else:
+                await callback.message.answer_photo(photo=image_ref, caption=prompt_text, reply_markup=kb)
+            # Try to delete previous message to keep UI clean
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
+            sent_with_image = True
+        except Exception as e_img:
+            logging.warning(f"Failed to send sales image: {e_img}")
+
+    if not sent_with_image:
+        try:
+            await callback.message.edit_text(text=prompt_text, reply_markup=kb)
+        except Exception as e_edit:
+            logging.warning(
+                f"Failed to edit message for promo prompt: {e_edit}. Sending new one."
+            )
+            await callback.message.answer(text=prompt_text, reply_markup=kb)
 
     await callback.answer()
     await state.set_state(UserPromoStates.waiting_for_promo_code)
@@ -117,7 +136,8 @@ async def process_promo_code_input(message: types.Message, state: FSMContext,
                     suspicious_input=code_input
                 )
             except Exception as e:
-                logging.error(f"Failed to send suspicious promo notification: {e}")
+                logging.error(
+                    f"Failed to send suspicious promo notification: {e}")
 
         response_to_user_text = _("promo_code_not_found",
                                   code=hcode(code_input.upper()))
@@ -139,7 +159,8 @@ async def process_promo_code_input(message: types.Message, state: FSMContext,
 
             response_to_user_text = _(
                 "promo_code_applied_success_full",
-                end_date=(new_end_date.strftime("%d.%m.%Y %H:%M:%S") if new_end_date else "N/A"),
+                end_date=(new_end_date.strftime("%d.%m.%Y %H:%M:%S")
+                          if new_end_date else "N/A"),
                 config_link=config_link,
             )
             reply_markup = get_connect_and_main_keyboard(

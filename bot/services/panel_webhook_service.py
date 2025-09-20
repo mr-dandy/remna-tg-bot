@@ -13,12 +13,14 @@ from bot.middlewares.i18n import JsonI18n
 from bot.keyboards.inline.user_keyboards import get_subscribe_only_markup, get_autorenew_cancel_keyboard
 from db.dal import user_dal
 from bot.utils.date_utils import add_months
+import os
 
 EVENT_MAP = {
     "user.expires_in_72_hours": (3, "subscription_72h_notification"),
     "user.expires_in_48_hours": (2, "subscription_48h_notification"),
     "user.expires_in_24_hours": (1, "subscription_24h_notification"),
 }
+
 
 class PanelWebhookService:
     def __init__(self, bot: Bot, settings: Settings, i18n: JsonI18n, async_session_factory: sessionmaker, panel_service: PanelApiService):
@@ -38,42 +40,68 @@ class PanelWebhookService:
     ):
         _ = lambda k, **kw: self.i18n.gettext(lang, k, **kw)
         try:
-            await self.bot.send_message(
-                user_id, _(message_key, **kwargs), reply_markup=reply_markup
-            )
+            text = _(message_key, **kwargs)
+            # Attach expired image for specific messages
+            image_ref = None
+            if message_key in {"subscription_expired_notification", "subscription_expired_yesterday_notification"}:
+                image_ref = getattr(
+                    self.settings, "SUBSCRIPTION_EXPIRED_IMAGE_PATH", None)
+            if image_ref:
+                if os.path.exists(image_ref):
+                    from aiogram.types import FSInputFile
+                    await self.bot.send_photo(
+                        user_id,
+                        photo=FSInputFile(image_ref),
+                        caption=text,
+                        reply_markup=reply_markup,
+                    )
+                else:
+                    await self.bot.send_photo(
+                        user_id,
+                        photo=image_ref,
+                        caption=text,
+                        reply_markup=reply_markup,
+                    )
+            else:
+                await self.bot.send_message(
+                    user_id, text, reply_markup=reply_markup
+                )
         except Exception as e:
             logging.error(f"Failed to send notification to {user_id}: {e}")
 
-    async def _handle_expired_subscription(self, session, user_id: int, user_payload: dict, 
-                                         lang: str, markup, first_name: str) -> bool:
+    async def _handle_expired_subscription(self, session, user_id: int, user_payload: dict,
+                                           lang: str, markup, first_name: str) -> bool:
         """Handle expired subscription - auto-renew tribute users if no cancellation was received.
 
         Returns True if an auto-renewal was performed (and renewal message sent), False otherwise.
         """
         from db.dal import subscription_dal, payment_dal
         from datetime import datetime, timezone
-        
+
         try:
             auto_renewed = False
             # Check if user has tribute subscriptions that weren't cancelled
             user_subs = await subscription_dal.get_active_subscriptions_for_user(session, user_id)
-            
+
             for sub in user_subs:
                 # Check if this subscription was marked as cancelled (from tribute cancellation webhook)
                 if sub.status_from_panel == 'CANCELLED':
-                    logging.info(f"Subscription {sub.subscription_id} for user {user_id} was cancelled, skipping auto-renewal")
+                    logging.info(
+                        f"Subscription {sub.subscription_id} for user {user_id} was cancelled, skipping auto-renewal")
                     continue
-                    
+
                 # Check if this user has tribute payments
                 last_tribute_duration = await payment_dal.get_last_tribute_payment_duration(session, user_id)
-                
+
                 if last_tribute_duration is not None:
                     # This user has tribute payments, auto-renew for the same duration
-                    logging.info(f"Auto-renewing tribute subscription for user {user_id} for {last_tribute_duration} months")
-                    
+                    logging.info(
+                        f"Auto-renewing tribute subscription for user {user_id} for {last_tribute_duration} months")
+
                     # Extend subscription by the last payment duration (calendar months)
-                    new_end_date = add_months(datetime.now(timezone.utc), last_tribute_duration)
-                    
+                    new_end_date = add_months(datetime.now(
+                        timezone.utc), last_tribute_duration)
+
                     # Update local DB subscription
                     await subscription_dal.update_subscription(
                         session,
@@ -134,19 +162,20 @@ class PanelWebhookService:
                             f"Failed to create auto-renew payment record for user {user_id}: {e_pay}",
                             exc_info=True,
                         )
-                    
+
                     # Send auto-renewal notification
-                    _ = lambda k, **kw: self.i18n.gettext(lang, k, **kw) if self.i18n else k
+                    _ = lambda k, **kw: self.i18n.gettext(
+                        lang, k, **kw) if self.i18n else k
                     auto_renewal_msg = _(
                         "tribute_auto_renewal",
                         default="🔄 <b>Подписка автоматически продлена</b>\n\n"
-                               "Ваша подписка Tribute была автоматически продлена на {months} мес.\n"
-                               "Новая дата окончания: {end_date}",
+                        "Ваша подписка Tribute была автоматически продлена на {months} мес.\n"
+                        "Новая дата окончания: {end_date}",
                         user_name=first_name,
                         months=last_tribute_duration,
                         end_date=new_end_date.strftime('%Y-%m-%d')
                     )
-                    
+
                     try:
                         await self.bot.send_message(
                             user_id,
@@ -156,13 +185,15 @@ class PanelWebhookService:
                         )
                         auto_renewed = True
                     except Exception as e:
-                        logging.error(f"Failed to send auto-renewal notification to user {user_id}: {e}")
-                        
+                        logging.error(
+                            f"Failed to send auto-renewal notification to user {user_id}: {e}")
+
             await session.commit()
             return auto_renewed
-            
+
         except Exception as e:
-            logging.error(f"Error handling expired subscription for user {user_id}: {e}")
+            logging.error(
+                f"Error handling expired subscription for user {user_id}: {e}")
             await session.rollback()
             return False
 
@@ -188,7 +219,8 @@ class PanelWebhookService:
             if days_left == 1:
                 # Trigger auto-renew via SubscriptionService (wired in at factory)
                 try:
-                    subscription_service = getattr(self, "subscription_service", None)
+                    subscription_service = getattr(
+                        self, "subscription_service", None)
                     if subscription_service:
                         async with self.async_session_factory() as session:
                             from db.dal import subscription_dal
@@ -204,9 +236,11 @@ class PanelWebhookService:
                                         await session.rollback()
                                 except Exception:
                                     await session.rollback()
-                                    logging.exception("Auto-renew attempt (24h) failed")
+                                    logging.exception(
+                                        "Auto-renew attempt (24h) failed")
                 except Exception:
-                    logging.exception("Auto-renew trigger (24h) failed pre-check")
+                    logging.exception(
+                        "Auto-renew trigger (24h) failed pre-check")
             if days_left <= self.settings.SUBSCRIPTION_NOTIFY_DAYS_BEFORE:
                 # For 48h event, if auto-renew is enabled and not tribute, show special notice with cancel button
                 if days_left == 2:
@@ -217,11 +251,13 @@ class PanelWebhookService:
                             "48h webhook check: user_id=%s sub_found=%s auto_renew=%s provider=%s",
                             user_id,
                             bool(sub),
-                            getattr(sub, 'auto_renew_enabled', None) if sub else None,
+                            getattr(sub, 'auto_renew_enabled',
+                                    None) if sub else None,
                             getattr(sub, 'provider', None) if sub else None,
                         )
                         if sub and sub.auto_renew_enabled and sub.provider != 'tribute':
-                            cancel_kb = get_autorenew_cancel_keyboard(lang, self.i18n)
+                            cancel_kb = get_autorenew_cancel_keyboard(
+                                lang, self.i18n)
                             await self._send_message(
                                 user_id,
                                 lang,
@@ -241,7 +277,7 @@ class PanelWebhookService:
         elif event_name == "user.expired":
             # Check if this is a tribute user that should be auto-renewed (regardless of notification settings)
             auto_renewed = await self._handle_expired_subscription(session, user_id, user_payload, lang, markup, first_name)
-            
+
             # If auto-renewed via Tribute, suppress expiration notification. Otherwise, send it if enabled.
             if not auto_renewed and self.settings.SUBSCRIPTION_NOTIFY_ON_EXPIRE:
                 await self._send_message(
@@ -284,7 +320,8 @@ class PanelWebhookService:
         if isinstance(user_data, dict) and "user" in user_data:
             user_data = user_data.get("user") or user_data
 
-        telegram_id = user_data.get("telegramId") if isinstance(user_data, dict) else None
+        telegram_id = user_data.get("telegramId") if isinstance(
+            user_data, dict) else None
 
         if not event_name:
             return web.Response(status=200, text="ok_no_event")
@@ -297,6 +334,7 @@ class PanelWebhookService:
 
         await self.handle_event(event_name, user_data)
         return web.Response(status=200, text="ok")
+
 
 async def panel_webhook_route(request: web.Request):
     service: PanelWebhookService = request.app["panel_webhook_service"]

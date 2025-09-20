@@ -16,6 +16,7 @@ from bot.services.referral_service import ReferralService
 from bot.keyboards.inline.user_keyboards import get_connect_and_main_keyboard
 from bot.services.notification_service import NotificationService
 from db.dal import payment_dal, user_dal
+import os
 
 
 class CryptoPayService:
@@ -37,7 +38,8 @@ class CryptoPayService:
         self.subscription_service = subscription_service
         self.referral_service = referral_service
         if token:
-            net = Networks.TEST_NET if str(network).lower() == "testnet" else Networks.MAIN_NET
+            net = Networks.TEST_NET if str(
+                network).lower() == "testnet" else Networks.MAIN_NET
             self.client = AioCryptoPay(token=token, network=net)
             self.client.register_pay_handler(self._invoice_paid_handler)
             self.configured = True
@@ -120,7 +122,8 @@ class CryptoPayService:
                 return None
             return invoice.bot_invoice_url
         except Exception as e:
-            logging.error(f"CryptoPay invoice creation failed: {e}", exc_info=True)
+            logging.error(
+                f"CryptoPay invoice creation failed: {e}", exc_info=True)
             return None
 
     async def _invoice_paid_handler(self, update: Update, app: web.Application):
@@ -170,7 +173,8 @@ class CryptoPayService:
                 await session.commit()
             except Exception as e:
                 await session.rollback()
-                logging.error(f"Failed to process CryptoPay invoice: {e}", exc_info=True)
+                logging.error(
+                    f"Failed to process CryptoPay invoice: {e}", exc_info=True)
                 return
 
             db_user = await user_dal.get_user_by_id(session, user_id)
@@ -178,12 +182,14 @@ class CryptoPayService:
             lang = db_user.language_code if db_user and db_user.language_code else settings.DEFAULT_LANGUAGE
             _ = lambda k, **kw: i18n.gettext(lang, k, **kw)
 
-            config_link = activation.get("subscription_url") or _("config_link_not_available")
+            config_link = activation.get("subscription_url") or _(
+                "config_link_not_available")
             final_end = activation.get("end_date")
             applied_days = 0
             if referral_bonus and referral_bonus.get("referee_new_end_date"):
                 final_end = referral_bonus["referee_new_end_date"]
-                applied_days = referral_bonus.get("referee_bonus_applied_days", 0)
+                applied_days = referral_bonus.get(
+                    "referee_bonus_applied_days", 0)
 
             if applied_days:
                 inviter_name_display = _("friend_placeholder")
@@ -195,7 +201,8 @@ class CryptoPayService:
                         inviter_name_display = f"@{inviter.username}"
                 text = _("payment_successful_with_referral_bonus_full",
                          months=months,
-                         base_end_date=activation["end_date"].strftime('%Y-%m-%d'),
+                         base_end_date=activation["end_date"].strftime(
+                             '%Y-%m-%d'),
                          bonus_days=applied_days,
                          final_end_date=final_end.strftime('%Y-%m-%d'),
                          inviter_name=inviter_name_display,
@@ -206,15 +213,36 @@ class CryptoPayService:
                          end_date=final_end.strftime('%Y-%m-%d'),
                          config_link=config_link)
 
-            markup = get_connect_and_main_keyboard(lang, i18n, settings, config_link)
+            markup = get_connect_and_main_keyboard(
+                lang, i18n, settings, config_link)
             try:
-                await bot.send_message(
-                    user_id,
-                    text,
-                    reply_markup=markup,
-                    parse_mode="HTML",
-                    disable_web_page_preview=True,
-                )
+                image_ref = settings.PAYMENT_SUCCESS_IMAGE_PATH
+                if image_ref:
+                    if os.path.exists(image_ref):
+                        from aiogram.types import FSInputFile
+                        await bot.send_photo(
+                            user_id,
+                            photo=FSInputFile(image_ref),
+                            caption=text,
+                            reply_markup=markup,
+                            parse_mode="HTML",
+                        )
+                    else:
+                        await bot.send_photo(
+                            user_id,
+                            photo=image_ref,
+                            caption=text,
+                            reply_markup=markup,
+                            parse_mode="HTML",
+                        )
+                else:
+                    await bot.send_message(
+                        user_id,
+                        text,
+                        reply_markup=markup,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
+                    )
             except Exception as e:
                 logging.error(f"Failed to send CryptoPay success message: {e}")
 
@@ -231,7 +259,8 @@ class CryptoPayService:
                     username=user.username if user else None
                 )
             except Exception as e:
-                logging.error(f"Failed to send crypto_pay payment notification: {e}")
+                logging.error(
+                    f"Failed to send crypto_pay payment notification: {e}")
 
     async def webhook_route(self, request: web.Request) -> web.Response:
         if not self.configured or not self.client:

@@ -141,6 +141,24 @@ class Settings(BaseSettings):
     START_COMMAND_DESCRIPTION: Optional[str] = Field(default=None)
     DISABLE_WELCOME_MESSAGE: bool = Field(
         default=False, description="Disable welcome message on /start command")
+    # Optional image to be sent on /start as a welcome illustration
+    WELCOME_IMAGE_URL: Optional[str] = Field(
+        default=None,
+        description="HTTP(S) URL or local file path to welcome image sent with /start",
+    )
+    # Optional images for various user flows
+    PAYMENT_SUCCESS_IMAGE_PATH: Optional[str] = Field(
+        default="data/images/payment_successful.jpeg",
+        description="Local path or URL to image shown after successful payment",
+    )
+    SUBSCRIPTION_EXPIRED_IMAGE_PATH: Optional[str] = Field(
+        default="data/images/subscription_ended.jpeg",
+        description="Local path or URL to image shown when subscription expired",
+    )
+    SALES_SECTION_IMAGE_PATH: Optional[str] = Field(
+        default="data/images/sales.jpg",
+        description="Local path or URL to image shown in sales/discounts section",
+    )
 
     # Inline mode thumbnail URLs
     INLINE_REFERRAL_THUMBNAIL_URL: str = Field(
