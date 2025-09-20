@@ -195,11 +195,17 @@ async def pay_tribute_callback_handler(
 
     # Показать кнопку перехода
     if tribute_url:
+        # Если ссылка вида t.me/tribute/app?startapp=..., используем обычный URL (Telegram сам откроет Mini App);
+        # иначе открываем как web_app (для web.tribute.tg/p/...)
+        open_as_web_app = not (
+            tribute_url.startswith(
+                "https://t.me/") or tribute_url.startswith("tg://")
+        )
         try:
             await callback.message.edit_text(
                 instruction_text,
                 reply_markup=get_payment_url_keyboard(
-                    tribute_url, current_lang, i18n, as_web_app=True),
+                    tribute_url, current_lang, i18n, as_web_app=open_as_web_app),
                 parse_mode="HTML",
                 disable_web_page_preview=False,
             )
@@ -208,7 +214,7 @@ async def pay_tribute_callback_handler(
                 await callback.message.answer(
                     instruction_text,
                     reply_markup=get_payment_url_keyboard(
-                        tribute_url, current_lang, i18n, as_web_app=True),
+                        tribute_url, current_lang, i18n, as_web_app=open_as_web_app),
                     parse_mode="HTML",
                     disable_web_page_preview=False,
                 )
