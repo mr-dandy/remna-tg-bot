@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 import logging
 import json
 from typing import Optional
@@ -105,6 +106,11 @@ class CryptoPayService:
                 description=description,
                 payload=payload,
             )
+            logging.debug(
+                "CryptoPay create_invoice ok: id=%s, status=%s, url=%s, payload=%s",
+                str(invoice.invoice_id), str(
+                    invoice.status), invoice.bot_invoice_url, payload,
+            )
             try:
                 await payment_dal.update_provider_payment_and_status(
                     session,
@@ -155,6 +161,11 @@ class CryptoPayService:
                     str(invoice.invoice_id),
                     "succeeded",
                 )
+                logging.debug(
+                    "CryptoPay webhook paid: user=%s, payment_db_id=%s, invoice_id=%s, amount=%s, asset=%s",
+                    str(user_id), str(payment_db_id), str(invoice.invoice_id), str(
+                        invoice.amount), str(invoice.asset),
+                )
                 activation = await subscription_service.activate_subscription(
                     session,
                     user_id,
@@ -162,6 +173,10 @@ class CryptoPayService:
                     float(invoice.amount),
                     payment_db_id,
                     provider="cryptopay",
+                )
+                logging.debug(
+                    "Subscription.activate_subscription via CryptoPay returned: %s",
+                    str(activation),
                 )
                 referral_bonus = await referral_service.apply_referral_bonuses_for_payment(
                     session,
@@ -180,7 +195,9 @@ class CryptoPayService:
             db_user = await user_dal.get_user_by_id(session, user_id)
             # Use DB language for user-facing messages
             lang = db_user.language_code if db_user and db_user.language_code else settings.DEFAULT_LANGUAGE
-            _ = lambda k, **kw: i18n.gettext(lang, k, **kw)
+
+            def _(key, **kw):
+                return i18n.gettext(lang, key, **kw)
 
             config_link = activation.get("subscription_url") or _(
                 "config_link_not_available")

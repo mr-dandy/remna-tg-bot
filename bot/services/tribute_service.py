@@ -97,7 +97,10 @@ class TributeService:
             return bad_request("invalid_json")
 
         logging.info(
-            "Tribute webhook data: %s",
+            "Tribute webhook received: name=%s", payload.get("name")
+        )
+        logging.debug(
+            "Tribute webhook RAW JSON: %s",
             json.dumps(payload, ensure_ascii=False),
         )
 
@@ -163,6 +166,9 @@ class TributeService:
                     float(amount_float),
                     payment_record.payment_id,
                     provider="tribute",
+                )
+                logging.debug(
+                    f"Tribute activate_subscription result: {activation_details}"
                 )
                 referral_bonus = await referral_service.apply_referral_bonuses_for_payment(
                     session,

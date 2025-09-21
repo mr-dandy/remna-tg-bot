@@ -1,8 +1,8 @@
+# flake8: noqa: E501
 import logging
 import json
 import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional
 
 from aiohttp import web
 from aiogram import Bot
@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from yookassa.domain.notification import WebhookNotification
-from yookassa.domain.models.amount import Amount as YooKassaAmount
+
 
 from db.dal import payment_dal, user_dal, user_billing_dal
 
@@ -36,6 +36,10 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
                                      panel_service: PanelApiService,
                                      subscription_service: SubscriptionService,
                                      referral_service: ReferralService):
+    logging.debug(
+        "YK process_successful_payment(): payload=%s",
+        json.dumps(payment_info_from_webhook, ensure_ascii=False),
+    )
     metadata = payment_info_from_webhook.get("metadata", {})
     user_id_str = metadata.get("user_id")
     subscription_months_str = metadata.get("subscription_months")
@@ -59,7 +63,8 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
         subscription_months = int(subscription_months_str)
         payment_db_id = int(
             payment_db_id_str) if payment_db_id_str and payment_db_id_str.isdigit() else None
-        is_auto_renew = bool(auto_renew_subscription_id_str and not payment_db_id)
+        is_auto_renew = bool(
+            auto_renew_subscription_id_str and not payment_db_id)
         promo_code_id = int(
             promo_code_id_str
         ) if promo_code_id_str and promo_code_id_str.isdigit() else None
@@ -77,7 +82,8 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
                     session,
                     user_id=user_id,
                     amount=payment_value,
-                    currency=amount_data.get("currency", settings.DEFAULT_CURRENCY_SYMBOL),
+                    currency=amount_data.get(
+                        "currency", settings.DEFAULT_CURRENCY_SYMBOL),
                     months=subscription_months,
                     description=payment_info_from_webhook.get(
                         "description") or f"Auto-renewal for {subscription_months} months",
@@ -143,7 +149,8 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
                 pm_type = payment_method.get("type")
                 title = payment_method.get("title")
                 card = payment_method.get("card") or {}
-                account_number = payment_method.get("account_number") or payment_method.get("account")
+                account_number = payment_method.get(
+                    "account_number") or payment_method.get("account")
                 display_network = None
                 display_last4 = None
                 # Build generic display for various instrument types
@@ -159,7 +166,8 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
                         display_last4 = None
                 else:
                     # Wallets, SBP, etc. — use provided title/type; no last4
-                    display_network = title or (pm_type.upper() if pm_type else "Payment method")
+                    display_network = title or (
+                        pm_type.upper() if pm_type else "Payment method")
                     display_last4 = None
 
                 await user_billing_dal.upsert_yk_payment_method(
@@ -170,7 +178,8 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
                     card_network=display_network,
                 )
         except Exception:
-            logging.exception("Failed to persist YooKassa payment method from webhook")
+            logging.exception(
+                "Failed to persist YooKassa payment method from webhook")
         updated_payment_record = await payment_dal.update_payment_status_by_db_id(
             session,
             payment_db_id=payment_db_id,
@@ -191,6 +200,9 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
             payment_db_id,
             promo_code_id_from_payment=promo_code_id,
             provider="yookassa")
+        logging.debug(
+            f"YK activate_subscription result: {activation_details}"
+        )
 
         if not activation_details or not activation_details.get('end_date'):
             logging.error(
@@ -221,7 +233,9 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
 
         # Use user's DB language for all user-facing messages
         user_lang = db_user.language_code if db_user and db_user.language_code else settings.DEFAULT_LANGUAGE
-        _ = lambda key, **kwargs: i18n.gettext(user_lang, key, **kwargs)
+
+        def _(key, **kwargs):
+            return i18n.gettext(user_lang, key, **kwargs)
 
         # For auto-renew charges, avoid re-sending config link; send concise message
         if is_auto_renew and final_end_date_for_user:
@@ -249,9 +263,11 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
                 details_message = _(
                     "payment_successful_with_referral_bonus_full",
                     months=subscription_months,
-                    base_end_date=base_subscription_end_date.strftime('%Y-%m-%d'),
+                    base_end_date=base_subscription_end_date.strftime(
+                        '%Y-%m-%d'),
                     bonus_days=applied_referee_bonus_days_from_referral,
-                    final_end_date=final_end_date_for_user.strftime('%Y-%m-%d'),
+                    final_end_date=final_end_date_for_user.strftime(
+                        '%Y-%m-%d'),
                     inviter_name=inviter_name_display,
                     config_link=config_link,
                 )
@@ -318,6 +334,10 @@ async def process_successful_payment(session: AsyncSession, bot: Bot,
 async def process_cancelled_payment(session: AsyncSession, bot: Bot,
                                     payment_info_from_webhook: dict,
                                     i18n: JsonI18n, settings: Settings):
+    logging.debug(
+        "YK process_cancelled_payment(): payload=%s",
+        json.dumps(payment_info_from_webhook, ensure_ascii=False),
+    )
 
     metadata = payment_info_from_webhook.get("metadata", {})
     user_id_str = metadata.get("user_id")
@@ -354,9 +374,11 @@ async def process_cancelled_payment(session: AsyncSession, bot: Bot,
 
         db_user = await user_dal.get_user_by_id(session, user_id)
         user_lang = settings.DEFAULT_LANGUAGE
-        if db_user and db_user.language_code: user_lang = db_user.language_code
+        if db_user and db_user.language_code:
+            user_lang = db_user.language_code
 
-        _ = lambda key, **kwargs: i18n.gettext(user_lang, key, **kwargs)
+        def _(key, **kwargs):
+            return i18n.gettext(user_lang, key, **kwargs)
         await bot.send_message(user_id, _("payment_failed"))
 
     except Exception as e_process_cancel:
@@ -396,6 +418,10 @@ async def yookassa_webhook_route(request: web.Request):
             f"YooKassa Webhook Parsed: Event='{notification_object.event}', "
             f"PaymentId='{payment_data_from_notification.id}', Status='{payment_data_from_notification.status}'"
         )
+        logging.debug(
+            "YooKassa Webhook RAW JSON: %s",
+            json.dumps(event_json, ensure_ascii=False),
+        )
 
         if not payment_data_from_notification or not hasattr(
                 payment_data_from_notification,
@@ -406,7 +432,8 @@ async def yookassa_webhook_route(request: web.Request):
             return web.Response(status=200, text="ok_error_no_metadata")
 
         # Safely extract payment_method details (SDK objects may not have to_dict)
-        pm_obj = getattr(payment_data_from_notification, 'payment_method', None)
+        pm_obj = getattr(payment_data_from_notification,
+                         'payment_method', None)
         pm_dict = None
         if pm_obj is not None:
             try:
@@ -436,7 +463,8 @@ async def yookassa_webhook_route(request: web.Request):
                     ),
                 }
             except Exception:
-                logging.exception("Failed to serialize YooKassa payment_method from webhook")
+                logging.exception(
+                    "Failed to serialize YooKassa payment_method from webhook")
                 pm_dict = None
 
         payment_dict_for_processing = {
@@ -483,22 +511,26 @@ async def yookassa_webhook_route(request: web.Request):
                         await session.commit()
                     elif notification_object.event == YOOKASSA_EVENT_PAYMENT_WAITING_FOR_CAPTURE:
                         # Bind-only flow: save method and cancel auth if metadata has bind_only
-                        metadata = payment_dict_for_processing.get("metadata", {}) or {}
+                        metadata = payment_dict_for_processing.get(
+                            "metadata", {}) or {}
                         if getattr(settings, 'YOOKASSA_AUTOPAYMENTS_ENABLED', False) and metadata.get("bind_only") == "1":
                             try:
                                 user_id_str = metadata.get("user_id")
                                 if user_id_str and user_id_str.isdigit():
                                     user_id = int(user_id_str)
-                                    payment_method = payment_dict_for_processing.get("payment_method")
+                                    payment_method = payment_dict_for_processing.get(
+                                        "payment_method")
                                     if isinstance(payment_method, dict) and payment_method.get("id"):
                                         pm_type = payment_method.get("type")
                                         title = payment_method.get("title")
                                         card = payment_method.get("card") or {}
-                                        account_number = payment_method.get("account_number") or payment_method.get("account")
+                                        account_number = payment_method.get(
+                                            "account_number") or payment_method.get("account")
                                         display_network = None
                                         display_last4 = None
                                         if (pm_type or "").lower() in {"bank_card", "bank-card", "card"}:
-                                            display_network = card.get("card_type") or title or "Card"
+                                            display_network = card.get(
+                                                "card_type") or title or "Card"
                                             display_last4 = card.get("last4")
                                         elif (pm_type or "").lower() in {"yoo_money", "yoomoney", "yoo-money", "wallet"}:
                                             # Normalize wallet display name to avoid leaking full account from title
@@ -508,12 +540,14 @@ async def yookassa_webhook_route(request: web.Request):
                                             else:
                                                 display_last4 = None
                                         else:
-                                            display_network = title or (pm_type.upper() if pm_type else "Payment method")
+                                            display_network = title or (
+                                                pm_type.upper() if pm_type else "Payment method")
                                             display_last4 = None
                                         await user_billing_dal.upsert_yk_payment_method(
                                             session,
                                             user_id=user_id,
-                                            payment_method_id=payment_method.get("id"),
+                                            payment_method_id=payment_method.get(
+                                                "id"),
                                             card_last4=display_last4,
                                             card_network=display_network,
                                         )
@@ -524,7 +558,8 @@ async def yookassa_webhook_route(request: web.Request):
                                             await ub.upsert_user_payment_method(
                                                 session,
                                                 user_id=user_id,
-                                                provider_payment_method_id=payment_method.get("id"),
+                                                provider_payment_method_id=payment_method.get(
+                                                    "id"),
                                                 provider="yookassa",
                                                 card_last4=display_last4,
                                                 card_network=display_network,
@@ -541,24 +576,31 @@ async def yookassa_webhook_route(request: web.Request):
                                             db_user = await user_dal.get_user_by_id(session, user_id)
                                             if db_user and db_user.language_code:
                                                 i18n_lang = db_user.language_code
-                                            _ = lambda key, **kwargs: i18n_instance.gettext(i18n_lang, key, **kwargs)
+
+                                            def _(key, **kwargs):
+                                                return i18n_instance.gettext(i18n_lang, key, **kwargs)
                                             from bot.keyboards.inline.user_keyboards import get_back_to_payment_methods_keyboard
                                             await bot.send_message(
                                                 chat_id=user_id,
-                                                text=_("payment_method_bound_success"),
-                                                reply_markup=get_back_to_payment_methods_keyboard(i18n_lang, i18n_instance)
+                                                text=_(
+                                                    "payment_method_bound_success"),
+                                                reply_markup=get_back_to_payment_methods_keyboard(
+                                                    i18n_lang, i18n_instance)
                                             )
                                         except Exception:
                                             pass
                                         # Attempt to cancel the authorization to avoid charge hold
                                         try:
-                                            yk: YooKassaService = request.app.get('yookassa_service')
+                                            yk: YooKassaService = request.app.get(
+                                                'yookassa_service')
                                             if yk:
                                                 await yk.cancel_payment(payment_dict_for_processing.get("id"))
                                         except Exception:
-                                            logging.exception("Failed to cancel bind-only payment auth")
+                                            logging.exception(
+                                                "Failed to cancel bind-only payment auth")
                             except Exception:
-                                logging.exception("Failed to handle bind-only waiting_for_capture webhook")
+                                logging.exception(
+                                    "Failed to handle bind-only waiting_for_capture webhook")
                 except Exception as e_webhook_db_processing:
                     await session.rollback()
                     logging.error(

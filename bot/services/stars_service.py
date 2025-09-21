@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 import logging
 from typing import Optional
 
@@ -25,8 +26,9 @@ class StarsService:
         self.subscription_service = subscription_service
         self.referral_service = referral_service
 
-    async def create_invoice(self, session: AsyncSession, user_id: int, months: int,
-                             stars_price: int, description: str) -> Optional[int]:
+    async def create_invoice(self, session: AsyncSession, user_id: int,
+                             months: int, stars_price: int,
+                             description: str) -> Optional[int]:
         payment_record_data = {
             "user_id": user_id,
             "amount": float(stars_price),
@@ -40,6 +42,12 @@ class StarsService:
             db_payment_record = await payment_dal.create_payment_record(
                 session, payment_record_data)
             await session.commit()
+            logging.debug(
+                "Stars create_invoice: payment_db_id=%s, user=%s, months=%s, "
+                "price=%s",
+                str(db_payment_record.payment_id), str(user_id),
+                str(months), str(stars_price),
+            )
         except Exception as e_db:
             await session.rollback()
             logging.error(f"Failed to create stars payment record: {e_db}",
@@ -57,6 +65,10 @@ class StarsService:
                 provider_token="",
                 currency="XTR",
                 prices=prices,
+            )
+            logging.debug(
+                "Stars send_invoice ok: user=%s, payload=%s, prices=%s",
+                str(user_id), payload, str(prices),
             )
             return db_payment_record.payment_id
         except Exception as e_inv:
@@ -76,11 +88,20 @@ class StarsService:
                 message.successful_payment.provider_payment_charge_id,
                 "succeeded")
             await session.commit()
+            logging.debug(
+                "Stars payment succeeded: user=%s, payment_db_id=%s, "
+                "charge_id=%s, months=%s, stars=%s",
+                str(message.from_user.id), str(payment_db_id),
+                str(message.successful_payment.provider_payment_charge_id),
+                str(months), str(stars_amount),
+            )
         except Exception as e_upd:
             await session.rollback()
             logging.error(
-                f"Failed to update stars payment record {payment_db_id}: {e_upd}",
-                exc_info=True)
+                "Failed to update stars payment record %s: %s",
+                str(payment_db_id), str(e_upd),
+                exc_info=True,
+            )
             return
 
         activation_details = await self.subscription_service.activate_subscription(
@@ -91,9 +112,15 @@ class StarsService:
             payment_db_id,
             provider="telegram_stars",
         )
+        logging.debug(
+            "Stars activate_subscription result: %s",
+            str(activation_details),
+        )
         if not activation_details or not activation_details.get("end_date"):
             logging.error(
-                f"Failed to activate subscription after stars payment for user {message.from_user.id}")
+                "Failed to activate subscription after stars payment for user %s",
+                str(message.from_user.id),
+            )
             return
 
         referral_bonus = await self.referral_service.apply_referral_bonuses_for_payment(
@@ -114,9 +141,15 @@ class StarsService:
 
         # Always use user's language from DB for user-facing messages
         db_user = await user_dal.get_user_by_id(session, message.from_user.id)
-        current_lang = db_user.language_code if db_user and db_user.language_code else self.settings.DEFAULT_LANGUAGE
+        current_lang = (
+            db_user.language_code
+            if db_user and db_user.language_code
+            else self.settings.DEFAULT_LANGUAGE
+        )
         i18n: JsonI18n = i18n_data.get("i18n_instance")
-        _ = lambda k, **kw: i18n.gettext(current_lang, k, **kw) if i18n else k
+
+        def _(k, **kw):
+            return i18n.gettext(current_lang, k, **kw) if i18n else k
 
         config_link = activation_details.get("subscription_url") or _(
             "config_link_not_available"
@@ -124,9 +157,14 @@ class StarsService:
 
         if applied_days:
             inviter_name_display = _("friend_placeholder")
-            db_user = await user_dal.get_user_by_id(session, message.from_user.id)
+            db_user = await user_dal.get_user_by_id(
+                session, message.from_user.id
+            )
             if db_user and db_user.referred_by_id:
-                inviter = await user_dal.get_user_by_id(session, db_user.referred_by_id)
+                inviter = await user_dal.get_user_by_id(
+                    session,
+                    db_user.referred_by_id,
+                )
                 if inviter and inviter.first_name:
                     inviter_name_display = inviter.first_name
                 elif inviter and inviter.username:
