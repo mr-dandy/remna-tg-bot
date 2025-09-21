@@ -761,6 +761,27 @@ class SubscriptionService:
                     except Exception:
                         pass
 
+            # Гарантированно подтягиваем панель, если локальная активная подписка больше/новее
+            # либо статус на панели не ACTIVE, даже если локальные поля не менялись
+            try:
+                if best_end_date and (best_end_date > now_utc):
+                    needs_push_to_panel = (
+                        panel_expire_dt is None
+                        or best_end_date > panel_expire_dt
+                        or panel_status != "ACTIVE"
+                    )
+                    if needs_push_to_panel:
+                        await self.panel_service.update_user_details_on_panel(
+                            panel_user_uuid,
+                            self._build_panel_update_payload(
+                                expire_at=best_end_date,
+                                status="ACTIVE",
+                                include_uuid=False,
+                            ),
+                        )
+            except Exception:
+                pass
+
         # Возвращаем наиболее актуальные данные
         # Если есть локальная активная — приоритизируем её дату/трафик, дополняя ссылкой с панели
         result_end_date = None
