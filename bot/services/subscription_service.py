@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
@@ -5,7 +6,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from aiogram import Bot
 from bot.middlewares.i18n import JsonI18n
 
-from db.dal import user_dal, subscription_dal, promo_code_dal, payment_dal, user_billing_dal
+from db.dal import user_dal, subscription_dal, promo_code_dal
 from bot.utils.date_utils import add_months
 from db.models import User, Subscription
 
@@ -58,7 +59,9 @@ class SubscriptionService:
         if not self.bot or not self.i18n or not self.settings.ADMIN_IDS:
             return
         admin_lang = self.settings.DEFAULT_LANGUAGE
-        _adm = lambda k, **kw: self.i18n.gettext(admin_lang, k, **kw)
+
+        def _adm(key: str, **kw):
+            return self.i18n.gettext(admin_lang, key, **kw)
         msg = _adm("admin_panel_user_creation_failed", user_id=user_id)
         for admin_id in self.settings.ADMIN_IDS:
             try:
@@ -133,7 +136,8 @@ class SubscriptionService:
                         and not creation_response.get("error")
                         and creation_response.get("response")
                     ):
-                        panel_user_obj_from_api = creation_response.get("response")
+                        panel_user_obj_from_api = creation_response.get(
+                            "response")
                         panel_user_created_or_linked_now = True
                     else:
                         await self._notify_admin_panel_user_creation_failed(user_id)
@@ -196,7 +200,8 @@ class SubscriptionService:
             )
 
         actual_panel_uuid_from_api = panel_user_obj_from_api.get("uuid")
-        actual_panel_username_from_api = panel_user_obj_from_api.get("username")
+        actual_panel_username_from_api = panel_user_obj_from_api.get(
+            "username")
         panel_telegram_id_from_api = panel_user_obj_from_api.get("telegramId")
 
         if not actual_panel_uuid_from_api:
@@ -312,7 +317,8 @@ class SubscriptionService:
 
         db_user = await user_dal.get_user_by_id(session, user_id)
         if not db_user:
-            logging.error(f"User {user_id} not found in DB, cannot activate trial.")
+            logging.error(
+                f"User {user_id} not found in DB, cannot activate trial.")
             return {
                 "eligible": False,
                 "activated": False,
@@ -331,7 +337,8 @@ class SubscriptionService:
         )
 
         if not panel_user_uuid or not panel_sub_link_id:
-            logging.error(f"Failed to get panel link details for trial user {user_id}.")
+            logging.error(
+                f"Failed to get panel link details for trial user {user_id}.")
             return {
                 "eligible": True,
                 "activated": False,
@@ -339,7 +346,8 @@ class SubscriptionService:
             }
 
         start_date = datetime.now(timezone.utc)
-        end_date = start_date + timedelta(days=self.settings.TRIAL_DURATION_DAYS)
+        end_date = start_date + \
+            timedelta(days=self.settings.TRIAL_DURATION_DAYS)
 
         await subscription_dal.deactivate_other_active_subscriptions(
             session, panel_user_uuid, panel_sub_link_id
@@ -403,7 +411,8 @@ class SubscriptionService:
         await session.commit()
 
         final_subscription_url = updated_panel_user.get("subscriptionUrl")
-        final_panel_short_uuid = updated_panel_user.get("shortUuid", panel_short_uuid)
+        final_panel_short_uuid = updated_panel_user.get(
+            "shortUuid", panel_short_uuid)
 
         return {
             "eligible": True,
@@ -548,7 +557,8 @@ class SubscriptionService:
             return None
 
         final_subscription_url = updated_panel_user.get("subscriptionUrl")
-        final_panel_short_uuid = updated_panel_user.get("shortUuid", panel_short_uuid)
+        final_panel_short_uuid = updated_panel_user.get(
+            "shortUuid", panel_short_uuid)
 
         return {
             "subscription_id": new_or_updated_sub.subscription_id,
@@ -592,10 +602,11 @@ class SubscriptionService:
             )
             start_date = datetime.now(timezone.utc)
             new_end_date_obj = start_date + timedelta(days=bonus_days)
-            
+
             # For promo code activations, use the configured user traffic limit
-            traffic_limit = self.settings.user_traffic_limit_bytes if "promo code" in reason.lower() else self.settings.trial_traffic_limit_bytes
-            
+            traffic_limit = self.settings.user_traffic_limit_bytes if "promo code" in reason.lower(
+            ) else self.settings.trial_traffic_limit_bytes
+
             bonus_sub_payload = {
                 "user_id": user_id,
                 "panel_user_uuid": panel_uuid,
@@ -619,7 +630,8 @@ class SubscriptionService:
             start_point_for_bonus = (
                 current_end_date if current_end_date > now_utc else now_utc
             )
-            new_end_date_obj = start_point_for_bonus + timedelta(days=bonus_days)
+            new_end_date_obj = start_point_for_bonus + \
+                timedelta(days=bonus_days)
 
             updated_sub_model = await subscription_dal.update_subscription_end_date(
                 session, active_sub.subscription_id, new_end_date_obj
@@ -634,7 +646,7 @@ class SubscriptionService:
                 ),
                 include_uuid=False,
             )
-            
+
             panel_update_success = (
                 await self.panel_service.update_user_details_on_panel(
                     panel_uuid,
@@ -681,26 +693,35 @@ class SubscriptionService:
             return None
 
         if local_active_sub:
-            update_payload_local = {}
-            panel_status = panel_user_data.get("status", "UNKNOWN").upper()
+            update_payload_local: Dict[str, Any] = {}
+            panel_status = (panel_user_data.get(
+                "status", "UNKNOWN") or "UNKNOWN").upper()
             panel_expire_at_str = panel_user_data.get("expireAt")
             panel_traffic_used = panel_user_data.get("usedTrafficBytes")
             panel_traffic_limit = panel_user_data.get("trafficLimitBytes")
             panel_sub_uuid_from_panel = panel_user_data.get(
-                "subscriptionUuid"
-            ) or panel_user_data.get("shortUuid")
+                "subscriptionUuid") or panel_user_data.get("shortUuid")
 
+            # Разбираем дату с панели, если она есть
+            panel_expire_dt = None
+            if panel_expire_at_str:
+                try:
+                    panel_expire_dt = datetime.fromisoformat(
+                        panel_expire_at_str.replace("Z", "+00:00"))
+                except Exception:
+                    panel_expire_dt = None
+
+            # 1) Не занижаем локальную дату более старой датой с панели
+            # Берем максимально известную дату истечения
+            best_end_date = local_active_sub.end_date
+            if panel_expire_dt and panel_expire_dt > best_end_date:
+                best_end_date = panel_expire_dt
+                update_payload_local["end_date"] = best_end_date
+                update_payload_local["last_notification_sent"] = None
+
+            # 2) Обновим прочие поля из панели, если изменились
             if local_active_sub.status_from_panel != panel_status:
                 update_payload_local["status_from_panel"] = panel_status
-            if panel_expire_at_str:
-                panel_expire_dt = datetime.fromisoformat(
-                    panel_expire_at_str.replace("Z", "+00:00")
-                )
-                if local_active_sub.end_date.replace(
-                    microsecond=0
-                ) != panel_expire_dt.replace(microsecond=0):
-                    update_payload_local["end_date"] = panel_expire_dt
-                    update_payload_local["last_notification_sent"] = None
             if (
                 panel_traffic_used is not None
                 and local_active_sub.traffic_used_bytes != panel_traffic_used
@@ -713,38 +734,53 @@ class SubscriptionService:
                 update_payload_local["traffic_limit_bytes"] = panel_traffic_limit
             if (
                 panel_sub_uuid_from_panel
-                and local_active_sub.panel_subscription_uuid
-                != panel_sub_uuid_from_panel
+                and local_active_sub.panel_subscription_uuid != panel_sub_uuid_from_panel
             ):
-                update_payload_local["panel_subscription_uuid"] = (
-                    panel_sub_uuid_from_panel
-                )
+                update_payload_local["panel_subscription_uuid"] = panel_sub_uuid_from_panel
 
-            is_active_based_on_panel = panel_status == "ACTIVE" and (
-                panel_expire_dt > datetime.now(timezone.utc)
-                if panel_expire_dt
-                else False
-            )
-            if local_active_sub.is_active != is_active_based_on_panel:
-                update_payload_local["is_active"] = is_active_based_on_panel
+            # 3) Статус активности по лучшей дате
+            now_utc = datetime.now(timezone.utc)
+            is_active_by_best = best_end_date > now_utc if best_end_date else False
+            if local_active_sub.is_active != is_active_by_best:
+                update_payload_local["is_active"] = is_active_by_best
 
             if update_payload_local:
                 await subscription_dal.update_subscription(
                     session, local_active_sub.subscription_id, update_payload_local
                 )
+                # Если локальная дата стала новее панели, попытаться подтянуть панель вверх
+                if best_end_date and panel_expire_dt and best_end_date > panel_expire_dt:
+                    try:
+                        await self.panel_service.update_user_details_on_panel(
+                            panel_user_uuid,
+                            self._build_panel_update_payload(
+                                expire_at=best_end_date,
+                                include_uuid=False,
+                            ),
+                        )
+                    except Exception:
+                        pass
 
-        panel_end_date = (
-            datetime.fromisoformat(panel_user_data["expireAt"].replace("Z", "+00:00"))
-            if panel_user_data.get("expireAt")
-            else None
-        )
+        # Возвращаем наиболее актуальные данные
+        # Если есть локальная активная — приоритизируем её дату/трафик, дополняя ссылкой с панели
+        result_end_date = None
+        try:
+            result_end_date = (
+                datetime.fromisoformat(panel_user_data.get(
+                    "expireAt", "").replace("Z", "+00:00"))
+                if panel_user_data.get("expireAt") else None
+            )
+        except Exception:
+            result_end_date = None
+        if local_active_sub and (not result_end_date or local_active_sub.end_date > result_end_date):
+            result_end_date = local_active_sub.end_date
 
         return {
-            "end_date": panel_end_date,
+            "end_date": result_end_date,
             "status_from_panel": panel_user_data.get("status", "UNKNOWN").upper(),
             "config_link": panel_user_data.get("subscriptionUrl"),
-            "traffic_limit_bytes": panel_user_data.get("trafficLimitBytes"),
-            "traffic_used_bytes": panel_user_data.get("usedTrafficBytes"),
+            "traffic_limit_bytes": (local_active_sub.traffic_limit_bytes if local_active_sub and local_active_sub.traffic_limit_bytes is not None else panel_user_data.get("trafficLimitBytes")),
+            "traffic_used_bytes": (local_active_sub.traffic_used_bytes if local_active_sub and local_active_sub.traffic_used_bytes is not None else panel_user_data.get("usedTrafficBytes")),
             "user_bot_username": db_user.username,
             "is_panel_data": True,
         }
@@ -799,12 +835,14 @@ class SubscriptionService:
         from db.dal.user_billing_dal import get_user_default_payment_method
         default_pm = await get_user_default_payment_method(session, sub.user_id)
         if not default_pm:
-            logging.info(f"Auto-renew skipped: no saved payment method for user {sub.user_id}")
+            logging.info(
+                f"Auto-renew skipped: no saved payment method for user {sub.user_id}")
             return False
 
         try:
             from .yookassa_service import YooKassaService  # local import to avoid cycles
-            yk: YooKassaService = self.yookassa_service  # type: ignore[attr-defined]
+            # type: ignore[attr-defined]
+            yk: YooKassaService = self.yookassa_service
         except Exception:
             yk = None  # type: ignore
         if not yk or not getattr(yk, 'configured', False):
@@ -834,7 +872,8 @@ class SubscriptionService:
         if not resp or resp.get("status") not in {"pending", "waiting_for_capture", "succeeded"}:
             logging.error(f"Auto-renew create_payment failed: {resp}")
             return False
-        logging.info(f"Auto-renew initiated for user {sub.user_id} payment_id={resp.get('id')}")
+        logging.info(
+            f"Auto-renew initiated for user {sub.user_id} payment_id={resp.get('id')}")
         return True
 
     async def update_last_notification_sent(
@@ -847,7 +886,8 @@ class SubscriptionService:
         )
         if sub_to_update:
             await subscription_dal.update_subscription_notification_time(
-                session, sub_to_update.subscription_id, datetime.now(timezone.utc)
+                session, sub_to_update.subscription_id, datetime.now(
+                    timezone.utc)
             )
             logging.info(
                 f"Updated last_notification_sent for user {user_id}, sub_id {sub_to_update.subscription_id}"
@@ -871,7 +911,8 @@ class SubscriptionService:
         if include_uuid and panel_user_uuid:
             payload["uuid"] = panel_user_uuid
         if expire_at is not None:
-            payload["expireAt"] = expire_at.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            payload["expireAt"] = expire_at.isoformat(
+                timespec="milliseconds").replace("+00:00", "Z")
         if status is not None:
             payload["status"] = status
         if traffic_limit_bytes is not None:
