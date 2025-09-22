@@ -90,6 +90,11 @@ class Settings(BaseSettings):
     TRIBUTE_SKIP_CANCELLATION_NOTIFICATIONS: bool = Field(
         default=False, description="Skip cancellation notifications for Tribute payments")
     PANEL_WEBHOOK_SECRET: Optional[str] = Field(default=None)
+    # Allow custom Tribute webhook path override via env
+    TRIBUTE_WEBHOOK_PATH: Optional[str] = Field(
+        default=None,
+        description="Override default Tribute webhook path. Example: /tribute-webhook",
+    )
 
     SUBSCRIPTION_NOTIFICATIONS_ENABLED: bool = Field(default=True)
     SUBSCRIPTION_NOTIFY_ON_EXPIRE: bool = Field(default=True)
@@ -240,6 +245,11 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def tribute_webhook_path(self) -> str:
+        # Prefer explicit env override if provided; ensure leading slash
+        custom = self.TRIBUTE_WEBHOOK_PATH
+        if isinstance(custom, str) and custom.strip():
+            val = custom.strip()
+            return val if val.startswith("/") else f"/{val}"
         return "/webhook/tribute"
 
     @computed_field
