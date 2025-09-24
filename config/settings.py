@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # Community and docs
     GROUP_LINK: Optional[str] = Field(
         default=None, description="Telegram group/channel link")
+    TRIAL_CHANNEL_URL: Optional[str] = Field(
+        default=None, description="Telegram channel URL to follow before trial")
     INSTRUCTIONS_URL: Optional[str] = Field(
         default=None, description="Instructions URL")
 
