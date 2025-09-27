@@ -244,19 +244,19 @@ def get_connect_and_main_keyboard(
         return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
 
-    # Prefer opening subscription page directly via external URL if config_link is available
-    if config_link:
-        builder.row(
-            InlineKeyboardButton(
-                text=_("connect_button"),
-                url=config_link,
-            )
-        )
-    elif settings.SUBSCRIPTION_MINI_APP_URL:
+    # Prefer opening Mini App if available; fallback to direct URL
+    if settings.SUBSCRIPTION_MINI_APP_URL:
         builder.row(
             InlineKeyboardButton(
                 text=_("connect_button"),
                 web_app=WebAppInfo(url=settings.SUBSCRIPTION_MINI_APP_URL),
+            )
+        )
+    elif config_link:
+        builder.row(
+            InlineKeyboardButton(
+                text=_("connect_button"),
+                url=config_link,
             )
         )
     else:

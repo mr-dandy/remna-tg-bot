@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 import logging
 from aiogram import Router, F, types, Bot
 from aiogram.filters import Command
@@ -5,7 +6,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from typing import Optional, Union
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+
 
 from config.settings import Settings
 from bot.keyboards.inline.user_keyboards import (
@@ -26,8 +27,8 @@ async def display_subscription_options(event: Union[types.Message, types.Callbac
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
 
-    get_text = lambda key, **kwargs: i18n.gettext(
-        current_lang, key, **kwargs) if i18n else key
+    def get_text(key, **kwargs):
+        return i18n.gettext(current_lang, key, **kwargs) if i18n else key
 
     if not i18n:
         err_msg = "Language service error."
@@ -91,7 +92,9 @@ async def my_subscription_command_handler(
     target = event.message if isinstance(event, types.CallbackQuery) else event
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: JsonI18n = i18n_data.get("i18n_instance")
-    get_text = lambda key, **kw: i18n.gettext(current_lang, key, **kw)
+
+    def get_text(key, **kw):
+        return i18n.gettext(current_lang, key, **kw)
 
     if not i18n or not target:
         if isinstance(event, types.Message):
@@ -167,21 +170,21 @@ async def my_subscription_command_handler(
         # Build rows to prepend above the base "back" markup
         prepend_rows = []
 
-        # 1) Connect button: prefer direct config_link as URL, fallback to Mini App URL
+        # 1) Connect button: prefer Mini App when available, fallback to direct config_link URL
         config_link = active.get("config_link") if isinstance(
             active, dict) else None
-        if config_link:
-            prepend_rows.append([
-                InlineKeyboardButton(
-                    text=get_text("connect_button"),
-                    url=config_link,
-                )
-            ])
-        elif settings.SUBSCRIPTION_MINI_APP_URL:
+        if settings.SUBSCRIPTION_MINI_APP_URL:
             prepend_rows.append([
                 InlineKeyboardButton(
                     text=get_text("connect_button"),
                     web_app=WebAppInfo(url=settings.SUBSCRIPTION_MINI_APP_URL),
+                )
+            ])
+        elif config_link:
+            prepend_rows.append([
+                InlineKeyboardButton(
+                    text=get_text("connect_button"),
+                    url=config_link,
                 )
             ])
 
@@ -242,8 +245,9 @@ async def toggle_autorenew_handler(
 ):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
-    get_text = lambda key, **kwargs: i18n.gettext(
-        current_lang, key, **kwargs) if i18n else key
+
+    def get_text(key, **kwargs):
+        return i18n.gettext(current_lang, key, **kwargs) if i18n else key
 
     try:
         _, payload = callback.data.split(":", 1)
@@ -296,8 +300,9 @@ async def confirm_autorenew_handler(
 ):
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
-    get_text = lambda key, **kwargs: i18n.gettext(
-        current_lang, key, **kwargs) if i18n else key
+
+    def get_text(key, **kwargs):
+        return i18n.gettext(current_lang, key, **kwargs) if i18n else key
 
     try:
         _, _, sub_id_str, enable_str = callback.data.split(":", 3)
