@@ -384,6 +384,18 @@ class SubscriptionService:
             status="ACTIVE",
             traffic_limit_bytes=self.settings.trial_traffic_limit_bytes,
         )
+        # Assign default trial squad if configured
+        try:
+            if getattr(self.settings, "trial_squad_uuid", None):
+                panel_update_payload["activeInternalSquads"] = [
+                    self.settings.trial_squad_uuid  # type: ignore
+                ]
+                logging.info(
+                    f"Assigning trial squad for user {user_id}: {self.settings.trial_squad_uuid}"
+                )
+        except Exception:
+            # Non-fatal; continue without squad
+            pass
 
         # Add user description based on Telegram profile
         panel_update_payload["description"] = "\n".join(

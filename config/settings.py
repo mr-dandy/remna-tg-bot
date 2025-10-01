@@ -134,6 +134,10 @@ class Settings(BaseSettings):
     USER_SQUAD_UUIDS: Optional[str] = Field(
         default=None,
         description="Comma-separated UUIDs of internal squads to assign to new panel users")
+    TRIAL_DEFAULT_SQUAD_UUID: Optional[str] = Field(
+        default=None,
+        description="Default squad UUID to assign for trial activations",
+    )
 
     # Duration-specific squad overrides (do not hardcode in code; read from env)
     SQUAD_UUID_1M: Optional[str] = Field(
@@ -250,6 +254,15 @@ class Settings(BaseSettings):
         if isinstance(self.SQUAD_UUID_12M, str) and self.SQUAD_UUID_12M.strip():
             mapping[12] = self.SQUAD_UUID_12M.strip()
         return mapping
+
+    @computed_field
+    @property
+    def trial_squad_uuid(self) -> Optional[str]:
+        val = self.TRIAL_DEFAULT_SQUAD_UUID
+        if isinstance(val, str):
+            val = val.strip()
+            return val if val else None
+        return None
 
     @computed_field
     @property
