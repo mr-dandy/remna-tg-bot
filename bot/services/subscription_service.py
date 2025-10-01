@@ -537,6 +537,22 @@ class SubscriptionService:
             status="ACTIVE",
             traffic_limit_bytes=self.settings.user_traffic_limit_bytes,
         )
+        # Assign squad based on subscription months if configured in env
+        try:
+            squad_uuid = self.settings.months_to_squad_uuid.get(months)
+            if squad_uuid:
+                # Override activeInternalSquads specifically for this user
+                panel_update_payload["activeInternalSquads"] = [squad_uuid]
+                logging.info(
+                    f"Assigning squad for user {user_id}: months={months} -> {squad_uuid}"
+                )
+            else:
+                logging.debug(
+                    f"No squad mapping for months={months}; skipping squad assignment"
+                )
+        except Exception as e:
+            logging.warning(
+                f"Failed to resolve squad mapping for months={months}: {e}")
 
         # Add user description based on Telegram profile
         panel_update_payload["description"] = "\n".join(
@@ -646,6 +662,7 @@ class SubscriptionService:
                 ),
                 include_uuid=False,
             )
+            # Squad policy during extension: keep existing squads; optionally could reassign
 
             panel_update_success = (
                 await self.panel_service.update_user_details_on_panel(

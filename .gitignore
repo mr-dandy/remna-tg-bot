@@ -17,3 +17,4 @@ __pycache__/
 locales/ru_backup.json
 locales/en_backup.json
 db/models_old.py
+.DS_Store

@@ -135,6 +135,14 @@ class Settings(BaseSettings):
         default=None,
         description="Comma-separated UUIDs of internal squads to assign to new panel users")
 
+    # Duration-specific squad overrides (do not hardcode in code; read from env)
+    SQUAD_UUID_1M: Optional[str] = Field(
+        default=None, description="Squad UUID for 1-month subscriptions")
+    SQUAD_UUID_6M: Optional[str] = Field(
+        default=None, description="Squad UUID for 6-month subscriptions")
+    SQUAD_UUID_12M: Optional[str] = Field(
+        default=None, description="Squad UUID for 12-month subscriptions")
+
     TRIAL_ENABLED: bool = Field(default=True)
     TRIAL_DURATION_DAYS: int = Field(default=3)
     TRIAL_TRAFFIC_LIMIT_GB: Optional[float] = Field(default=5.0)
@@ -229,6 +237,19 @@ class Settings(BaseSettings):
                 if uuid.strip()
             ]
         return None
+
+    @computed_field
+    @property
+    def months_to_squad_uuid(self) -> Dict[int, str]:
+        mapping: Dict[int, str] = {}
+        # Only include non-empty values
+        if isinstance(self.SQUAD_UUID_1M, str) and self.SQUAD_UUID_1M.strip():
+            mapping[1] = self.SQUAD_UUID_1M.strip()
+        if isinstance(self.SQUAD_UUID_6M, str) and self.SQUAD_UUID_6M.strip():
+            mapping[6] = self.SQUAD_UUID_6M.strip()
+        if isinstance(self.SQUAD_UUID_12M, str) and self.SQUAD_UUID_12M.strip():
+            mapping[12] = self.SQUAD_UUID_12M.strip()
+        return mapping
 
     @computed_field
     @property
