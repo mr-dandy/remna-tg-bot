@@ -156,6 +156,10 @@ class Settings(BaseSettings):
     LOGS_PAGE_SIZE: int = Field(default=10)
 
     SUBSCRIPTION_MINI_APP_URL: Optional[str] = Field(default=None)
+    OPEN_MINI_APP: bool = Field(
+        default=True,
+        description="When true, open connect via Telegram WebApp; when false, open URL externally",
+    )
 
     START_COMMAND_DESCRIPTION: Optional[str] = Field(default=None)
     DISABLE_WELCOME_MESSAGE: bool = Field(

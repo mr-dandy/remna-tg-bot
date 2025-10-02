@@ -173,7 +173,7 @@ async def my_subscription_command_handler(
         # 1) Connect button: prefer Mini App when available, fallback to direct config_link URL
         config_link = active.get("config_link") if isinstance(
             active, dict) else None
-        if settings.SUBSCRIPTION_MINI_APP_URL:
+        if settings.OPEN_MINI_APP and settings.SUBSCRIPTION_MINI_APP_URL:
             # Append user_id as fallback when Telegram initData is unavailable
             mini_url = settings.SUBSCRIPTION_MINI_APP_URL
             try:

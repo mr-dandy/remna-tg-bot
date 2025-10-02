@@ -247,7 +247,7 @@ def get_connect_and_main_keyboard(
     builder = InlineKeyboardBuilder()
 
     # Prefer opening Mini App if available; fallback to direct URL
-    if settings.SUBSCRIPTION_MINI_APP_URL:
+    if settings.OPEN_MINI_APP and settings.SUBSCRIPTION_MINI_APP_URL:
         mini_url = settings.SUBSCRIPTION_MINI_APP_URL
         if user_id is not None:
             try:
