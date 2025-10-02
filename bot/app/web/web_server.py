@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 import asyncio
 import logging
 from aiohttp import web
@@ -44,7 +45,8 @@ async def build_and_start_web_app(
         app.router.add_post(telegram_webhook_path,
                             SimpleRequestHandler(dispatcher=dp, bot=bot))
         logging.info(
-            f"Telegram webhook route configured at: [POST] {telegram_webhook_path} (relative to base URL)"
+            f"Telegram webhook route configured at: [POST] {telegram_webhook_path} "
+            "(relative to base URL)"
         )
 
     # --- Health and diagnostics endpoints ---
@@ -56,10 +58,10 @@ async def build_and_start_web_app(
 
     async def miniapp_sub_handler(request: web.Request) -> web.StreamResponse:
         """Resolve current user's subscription link on the panel and redirect there.
-        Accepts Telegram WebApp initData via header 'X-Telegram-Init-Data' or query 'tgWebAppData'.
-        Falls back to query 'user_id' for manual testing.
+        Accepts Telegram WebApp initData via header 'X-Telegram-Init-Data' or
+        query 'tgWebAppData'. Falls back to query 'user_id' for manual tests.
         """
-        settings_local: Settings = request.app["settings"]
+        # settings_local: Settings = request.app["settings"]  # not used
         panel_service = request.app.get("panel_service")
         async_session_factory_local: sessionmaker = request.app["async_session_factory"]
 
@@ -73,7 +75,6 @@ async def build_and_start_web_app(
                 import json as _json
                 parsed = dict(parse_qsl(init_data, keep_blank_values=True))
                 if "user" in parsed and parsed["user"]:
-                    # {'id': ..., 'first_name': ...}
                     user_obj = _json.loads(parsed["user"])
                     if isinstance(user_obj, dict) and "id" in user_obj:
                         # best-effort; signature validation can be added later
@@ -93,20 +94,29 @@ async def build_and_start_web_app(
         try:
             from db.dal import subscription_dal
             async with async_session_factory_local() as db_session:
-                local_sub = await subscription_dal.get_active_subscription_by_user_id(db_session, tg_user_id)
+                local_sub = await subscription_dal.get_active_subscription_by_user_id(
+                    db_session, tg_user_id
+                )
                 if not local_sub:
-                    return web.Response(status=200, text="Subscription is not active. Open the bot to purchase.")
+                    return web.Response(
+                        status=200,
+                        text="Subscription is not active. Open the bot to purchase.",
+                    )
 
                 sub_uuid = getattr(local_sub, "panel_subscription_uuid", None)
                 if not sub_uuid:
                     return web.Response(status=200, text="Subscription link is not available yet. Try again later.")
 
                 if not panel_service:
-                    return web.Response(status=503, text="Service unavailable. Please try again later.")
+                    return web.Response(
+                        status=503, text="Service unavailable. Please try again later."
+                    )
 
                 link = await panel_service.get_subscription_link(sub_uuid)
                 if not link:
-                    return web.Response(status=502, text="Failed to resolve subscription link.")
+                    return web.Response(
+                        status=502, text="Failed to resolve subscription link."
+                    )
 
                 # 3) Redirect to panel subscription page
                 raise web.HTTPFound(location=link)
@@ -118,7 +128,9 @@ async def build_and_start_web_app(
 
     app.router.add_get("/healthz", health_handler)
     app.router.add_get("/miniapp/ping", miniapp_ping_handler)
+    # Support both with and without trailing slash for Telegram WebView peculiarities
     app.router.add_get("/miniapp/sub", miniapp_sub_handler)
+    app.router.add_get("/miniapp/sub/", miniapp_sub_handler)
 
     from bot.handlers.user.payment import yookassa_webhook_route
     from bot.services.tribute_service import tribute_webhook_route
