@@ -237,7 +237,9 @@ def get_connect_and_main_keyboard(
         lang: str,
         i18n_instance,
         settings: Settings,
-        config_link: Optional[str]) -> InlineKeyboardMarkup:
+        config_link: Optional[str],
+        *,
+        user_id: Optional[int] = None) -> InlineKeyboardMarkup:
     """Keyboard with a connect button and a back to main menu button."""
 
     def _(key, **kwargs):
@@ -246,10 +248,18 @@ def get_connect_and_main_keyboard(
 
     # Prefer opening Mini App if available; fallback to direct URL
     if settings.SUBSCRIPTION_MINI_APP_URL:
+        mini_url = settings.SUBSCRIPTION_MINI_APP_URL
+        if user_id is not None:
+            try:
+                from urllib.parse import urlencode
+                sep = '&' if ('?' in mini_url) else '?'
+                mini_url = f"{mini_url}{sep}{urlencode({'user_id': user_id})}"
+            except Exception:
+                pass
         builder.row(
             InlineKeyboardButton(
                 text=_("connect_button"),
-                web_app=WebAppInfo(url=settings.SUBSCRIPTION_MINI_APP_URL),
+                web_app=WebAppInfo(url=mini_url),
             )
         )
     elif config_link:

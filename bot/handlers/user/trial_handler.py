@@ -234,7 +234,9 @@ async def confirm_activate_trial_handler(
         await callback.message.edit_text(
             final_message_text_in_chat,
             parse_mode="HTML",
-            reply_markup=reply_markup,
+            reply_markup=get_connect_and_main_keyboard(
+                current_lang, i18n, settings, config_link_for_trial, user_id=user_id
+            ) if activation_result and activation_result.get("activated") else reply_markup,
             disable_web_page_preview=True,
         )
     except Exception as e_edit:
@@ -246,7 +248,9 @@ async def confirm_activate_trial_handler(
             await callback.message.answer(
                 final_message_text_in_chat,
                 parse_mode="HTML",
-                reply_markup=reply_markup,
+                reply_markup=get_connect_and_main_keyboard(
+                    current_lang, i18n, settings, config_link_for_trial, user_id=user_id
+                ) if activation_result and activation_result.get("activated") else reply_markup,
                 disable_web_page_preview=True,
             )
 
