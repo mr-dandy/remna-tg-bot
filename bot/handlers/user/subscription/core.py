@@ -174,10 +174,18 @@ async def my_subscription_command_handler(
         config_link = active.get("config_link") if isinstance(
             active, dict) else None
         if settings.SUBSCRIPTION_MINI_APP_URL:
+            # Append user_id as fallback when Telegram initData is unavailable
+            mini_url = settings.SUBSCRIPTION_MINI_APP_URL
+            try:
+                from urllib.parse import urlencode
+                separator = '&' if ('?' in mini_url) else '?'
+                mini_url = f"{mini_url}{separator}{urlencode({'user_id': event.from_user.id})}"
+            except Exception:
+                pass
             prepend_rows.append([
                 InlineKeyboardButton(
                     text=get_text("connect_button"),
-                    web_app=WebAppInfo(url=settings.SUBSCRIPTION_MINI_APP_URL),
+                    web_app=WebAppInfo(url=mini_url),
                 )
             ])
         elif config_link:
