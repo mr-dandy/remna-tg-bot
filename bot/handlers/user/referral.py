@@ -1,13 +1,12 @@
 import logging
 from aiogram import Router, F, types, Bot
-from aiogram.filters import Command
 from typing import Optional, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.settings import Settings
 from bot.services.referral_service import ReferralService
 
-from bot.keyboards.inline.user_keyboards import get_back_to_main_menu_markup
+
 from bot.middlewares.i18n import JsonI18n
 
 router = Router(name="user_referral_router")
@@ -21,8 +20,9 @@ async def referral_command_handler(event: Union[types.Message,
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n: Optional[JsonI18n] = i18n_data.get("i18n_instance")
 
-    target_message_obj = event.message if isinstance(
-        event, types.CallbackQuery) else event
+    target_message_obj = (
+        event.message if isinstance(event, types.CallbackQuery) else event
+    )
     if not target_message_obj:
         logging.error(
             "Target message is None in referral_command_handler (possibly from callback without message)."
@@ -38,25 +38,30 @@ async def referral_command_handler(event: Union[types.Message,
         )
         await target_message_obj.answer(
             "Service error. Please try again later.")
-        if isinstance(event, types.CallbackQuery): await event.answer()
+        if isinstance(event, types.CallbackQuery):
+            await event.answer()
         return
 
-    _ = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs)
+    def _(key, **kwargs):
+        return i18n.gettext(current_lang, key, **kwargs)
 
     try:
         bot_info = await bot.get_me()
         bot_username = bot_info.username
     except Exception as e_bot_info:
         logging.error(
-            f"Failed to get bot info for referral link: {e_bot_info}")
+            f"Failed to get bot info for referral link: {e_bot_info}"
+        )
         await target_message_obj.answer(_("error_generating_referral_link"))
-        if isinstance(event, types.CallbackQuery): await event.answer()
+        if isinstance(event, types.CallbackQuery):
+            await event.answer()
         return
 
     if not bot_username:
         logging.error("Bot username is None, cannot generate referral link.")
         await target_message_obj.answer(_("error_generating_referral_link"))
-        if isinstance(event, types.CallbackQuery): await event.answer()
+        if isinstance(event, types.CallbackQuery):
+            await event.answer()
         return
 
     inviter_user_id = event.from_user.id
@@ -86,14 +91,30 @@ async def referral_command_handler(event: Union[types.Message,
     # Get referral statistics
     referral_stats = await referral_service.get_referral_stats(session, inviter_user_id)
 
-    text = _("referral_program_info_new",
-             referral_link=referral_link,
-             bonus_details=bonus_details_str,
-             invited_count=referral_stats["invited_count"],
-             purchased_count=referral_stats["purchased_count"])
+    text = _(
+        "referral_program_info_new",
+        referral_link=referral_link,
+        bonus_details=bonus_details_str,
+        invited_count=referral_stats["invited_count"],
+        purchased_count=referral_stats["purchased_count"],
+    )
 
     from bot.keyboards.inline.user_keyboards import get_referral_link_keyboard
-    reply_markup_val = get_referral_link_keyboard(current_lang, i18n)
+    # Build share URLs for web-app share sheet (Telegram supports opening external share sheets in web).
+    share_text = i18n.gettext(
+        current_lang,
+        "referral_friend_message",
+        referral_link=referral_link,
+    )
+    import urllib.parse as _url
+    encoded_text = _url.quote(share_text)
+    # Universal web share options (will open platform share sheet in mobile browsers)
+    web_share = (
+        f"https://t.me/share/url?url={_url.quote(referral_link)}&text={encoded_text}"
+    )
+    reply_markup_val = get_referral_link_keyboard(
+        current_lang, i18n, share_url=web_share
+    )
 
     if isinstance(event, types.Message):
         await event.answer(text,
@@ -115,34 +136,38 @@ async def referral_command_handler(event: Union[types.Message,
 
 
 @router.callback_query(F.data.startswith("referral_action:"))
-async def referral_action_handler(callback: types.CallbackQuery, settings: Settings, 
-                                 i18n_data: dict, referral_service: ReferralService, 
-                                 bot: Bot, session: AsyncSession):
+async def referral_action_handler(callback: types.CallbackQuery, settings: Settings,
+                                  i18n_data: dict, referral_service: ReferralService,
+                                  bot: Bot, session: AsyncSession):
     action = callback.data.split(":")[1]
     current_lang = i18n_data.get("current_language", settings.DEFAULT_LANGUAGE)
     i18n = i18n_data.get("i18n_instance")
-    _ = lambda key, **kwargs: i18n.gettext(current_lang, key, **kwargs)
+
+    def _(key, **kwargs):
+        return i18n.gettext(current_lang, key, **kwargs)
 
     if action == "share_message":
         try:
             bot_info = await bot.get_me()
             bot_username = bot_info.username
             if not bot_username:
-                await callback.answer("Ошибка получения имени бота", show_alert=True)
+                await callback.answer(
+                    "Ошибка получения имени бота", show_alert=True
+                )
                 return
 
             inviter_user_id = callback.from_user.id
-            referral_link = referral_service.generate_referral_link(bot_username, inviter_user_id)
-            
-            friend_message = _("referral_friend_message", referral_link=referral_link)
-            
-            await callback.message.answer(
-                friend_message,
-                disable_web_page_preview=True
+            referral_link = referral_service.generate_referral_link(
+                bot_username, inviter_user_id)
+
+            friend_message = _(
+                "referral_friend_message", referral_link=referral_link
             )
-            
+            await callback.message.answer(
+                friend_message, disable_web_page_preview=True
+            )
+
         except Exception as e:
             logging.error(f"Error in referral share message: {e}")
             await callback.answer("Произошла ошибка", show_alert=True)
-        
     await callback.answer()

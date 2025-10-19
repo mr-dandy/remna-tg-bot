@@ -155,6 +155,11 @@ class Settings(BaseSettings):
     WEB_SERVER_PORT: int = Field(default=8080)
     LOGS_PAGE_SIZE: int = Field(default=10)
 
+    # Reminders job frequency (seconds)
+    REMINDERS_JOB_INTERVAL_SECONDS: int = Field(
+        default=3600,
+        description="Interval in seconds for reminders job (subscription/trial notifications)")
+
     SUBSCRIPTION_MINI_APP_URL: Optional[str] = Field(default=None)
     OPEN_MINI_APP: bool = Field(
         default=True,

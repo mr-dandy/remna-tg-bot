@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 import logging
 from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +7,7 @@ from sqlalchemy import update, delete, func, and_, or_
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone, timedelta
 
-from db.models import Subscription, User
+from db.models import Subscription
 
 
 async def get_active_subscription_by_user_id(
@@ -14,8 +15,10 @@ async def get_active_subscription_by_user_id(
         user_id: int,
         panel_user_uuid: Optional[str] = None) -> Optional[Subscription]:
     stmt = select(Subscription).where(
-        Subscription.user_id == user_id, Subscription.is_active == True,
-        Subscription.end_date > datetime.now(timezone.utc))
+        Subscription.user_id == user_id,
+        Subscription.is_active,
+        Subscription.end_date > datetime.now(timezone.utc),
+    )
     if panel_user_uuid:
         stmt = stmt.where(Subscription.panel_user_uuid == panel_user_uuid)
     stmt = stmt.order_by(Subscription.end_date.desc())
@@ -35,7 +38,7 @@ async def get_active_subscriptions_for_user(session: AsyncSession, user_id: int)
     """Get all active subscriptions for a user."""
     stmt = select(Subscription).where(
         Subscription.user_id == user_id,
-        Subscription.is_active == True
+        Subscription.is_active
     ).order_by(Subscription.end_date.desc())
     result = await session.execute(stmt)
     return result.scalars().all()
@@ -70,7 +73,7 @@ async def set_user_subscriptions_cancelled_with_grace(
     grace_end = datetime.now(timezone.utc) + timedelta(days=grace_days)
     stmt = (
         update(Subscription)
-        .where(Subscription.user_id == user_id, Subscription.is_active == True)
+        .where(Subscription.user_id == user_id, Subscription.is_active)
         .values(
             end_date=grace_end,
             status_from_panel="CANCELLED",
@@ -129,10 +132,17 @@ async def upsert_subscription(session: AsyncSession,
 async def deactivate_other_active_subscriptions(
         session: AsyncSession, panel_user_uuid: str,
         current_panel_subscription_uuid: Optional[str]):
-    stmt = (update(Subscription).where(
-        Subscription.panel_user_uuid == panel_user_uuid,
-        Subscription.is_active == True,
-    ).values(is_active=False, status_from_panel="INACTIVE_BY_BOT_SYNC"))
+    stmt = (
+        update(Subscription)
+        .where(
+            Subscription.panel_user_uuid == panel_user_uuid,
+            Subscription.is_active,
+        )
+        .values(
+            is_active=False,
+            status_from_panel="INACTIVE_BY_BOT_SYNC",
+        )
+    )
     if current_panel_subscription_uuid:
         stmt = stmt.where(Subscription.panel_subscription_uuid !=
                           current_panel_subscription_uuid)
@@ -148,8 +158,11 @@ async def deactivate_all_user_subscriptions(
         session: AsyncSession, user_id: int) -> int:
     stmt = (
         update(Subscription)
-        .where(Subscription.user_id == user_id, Subscription.is_active == True)
-        .values(is_active=False, status_from_panel="INACTIVE_USER_NOT_FOUND")
+        .where(Subscription.user_id == user_id, Subscription.is_active)
+        .values(
+            is_active=False,
+            status_from_panel="INACTIVE_USER_NOT_FOUND",
+        )
     )
     result = await session.execute(stmt)
     if result.rowcount > 0:
@@ -197,17 +210,55 @@ async def get_subscriptions_near_expiration(
     now_utc = datetime.now(timezone.utc)
     threshold_date = now_utc + timedelta(days=days_threshold)
 
-    stmt = (select(Subscription).join(Subscription.user).where(
-        Subscription.is_active == True,
-        Subscription.skip_notifications == False,
-        Subscription.end_date > now_utc,
-        Subscription.end_date <= threshold_date,
-        or_(
-            Subscription.last_notification_sent == None,
-            func.date(Subscription.last_notification_sent)
-            < func.date(now_utc))).order_by(
-                Subscription.end_date.asc()).options(
-                    selectinload(Subscription.user)))
+    stmt = (
+        select(Subscription)
+        .join(Subscription.user)
+        .where(
+            Subscription.is_active,
+            Subscription.skip_notifications.is_(False),
+            Subscription.end_date > now_utc,
+            Subscription.end_date <= threshold_date,
+            or_(
+                Subscription.last_notification_sent.is_(None),
+                func.date(Subscription.last_notification_sent)
+                < func.date(now_utc),
+            ),
+        )
+        .order_by(Subscription.end_date.asc())
+        .options(selectinload(Subscription.user))
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+async def get_trials_ended_today(session: AsyncSession) -> List[Subscription]:
+    """Return trial subscriptions ended today (UTC).
+
+    Trial: provider is NULL (trial), or status_from_panel starts with 'TRIAL'.
+    """
+    now_utc = datetime.now(timezone.utc)
+    start_of_day = datetime(
+        now_utc.year,
+        now_utc.month,
+        now_utc.day,
+        tzinfo=timezone.utc,
+    )
+    end_of_day = start_of_day + timedelta(days=1)
+
+    stmt = (
+        select(Subscription)
+        .join(Subscription.user)
+        .where(
+            Subscription.end_date >= start_of_day,
+            Subscription.end_date < end_of_day,
+            or_(
+                Subscription.status_from_panel.ilike("TRIAL%"),
+                and_(Subscription.provider.is_(None),
+                     Subscription.duration_months == 0),
+            ),
+        )
+        .options(selectinload(Subscription.user))
+    )
     result = await session.execute(stmt)
     return result.scalars().all()
 
@@ -228,14 +279,17 @@ async def find_subscription_for_notification_update(
         subscription_end_date_to_match = subscription_end_date_to_match.replace(
             tzinfo=timezone.utc)
 
-    stmt = select(Subscription).where(
-        Subscription.user_id == user_id, Subscription.is_active == True,
-        Subscription.end_date
-        >= subscription_end_date_to_match - timedelta(seconds=1),
-        Subscription.end_date
-        <= subscription_end_date_to_match + timedelta(seconds=1)).limit(1)
+    stmt = (
+        select(Subscription)
+        .where(
+            Subscription.user_id == user_id,
+            Subscription.is_active,
+            Subscription.end_date
+            >= subscription_end_date_to_match - timedelta(seconds=1),
+            Subscription.end_date
+            <= subscription_end_date_to_match + timedelta(seconds=1),
+        )
+        .limit(1)
+    )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
-
-
-

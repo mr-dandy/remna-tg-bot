@@ -130,6 +130,69 @@ async def build_and_start_web_app(
     app.router.add_get("/miniapp/ping", miniapp_ping_handler)
     # Support both with and without trailing slash for Telegram WebView peculiarities
     app.router.add_get("/miniapp/sub", miniapp_sub_handler)
+
+    # --- Background jobs: subscription/trial reminders ---
+    async def reminders_job(app: web.Application):
+        settings_local: Settings = app["settings"]
+        if not settings_local.SUBSCRIPTION_NOTIFICATIONS_ENABLED:
+            return
+        async_session_factory_local: sessionmaker = app["async_session_factory"]
+        i18n_instance = app.get("i18n")
+        bot: Bot = app["bot"]
+        from bot.services.subscription_service import SubscriptionService
+        subscription_service: SubscriptionService = app["subscription_service"]
+        from bot.keyboards.inline.user_keyboards import get_main_menu_inline_keyboard
+
+        interval = max(60, int(
+            getattr(settings_local, "REMINDERS_JOB_INTERVAL_SECONDS", 3600) or 3600))
+        while True:
+            try:
+                async with async_session_factory_local() as db_session:
+                    # 3 days and 1 day reminders
+                    for days in (3, 1):
+                        subs = await subscription_service.get_subscriptions_ending_soon(db_session, days)
+                        for s in subs:
+                            lang = s.get("language_code", settings_local.DEFAULT_LANGUAGE) if isinstance(
+                                s, dict) else settings_local.DEFAULT_LANGUAGE
+                            _ = (lambda k, **kw: i18n_instance.gettext(lang, k,
+                                 **kw)) if i18n_instance else (lambda k, **kw: k)
+                            text = _("renew_reminder_days", days=days)
+                            try:
+                                kb = get_main_menu_inline_keyboard(
+                                    lang, i18n_instance, settings_local, False)
+                                await bot.send_message(s["user_id"], text, reply_markup=kb, parse_mode="HTML")
+                            except Exception:
+                                pass
+                    # Today reminders (0 days) and trial ended today
+                    subs_today = await subscription_service.get_subscriptions_ending_soon(db_session, 0)
+                    for s in subs_today:
+                        lang = s.get("language_code", settings_local.DEFAULT_LANGUAGE) if isinstance(
+                            s, dict) else settings_local.DEFAULT_LANGUAGE
+                        _ = (lambda k, **kw: i18n_instance.gettext(lang, k,
+                             **kw)) if i18n_instance else (lambda k, **kw: k)
+                        text = _("renew_reminder_today")
+                        try:
+                            kb = get_main_menu_inline_keyboard(
+                                lang, i18n_instance, settings_local, False)
+                            await bot.send_message(s["user_id"], text, reply_markup=kb, parse_mode="HTML")
+                        except Exception:
+                            pass
+                    # Trial ended today
+                    from db.dal.subscription_dal import get_trials_ended_today
+                    trials = await get_trials_ended_today(db_session)
+                    for t in trials:
+                        lang = t.user.language_code if t.user and t.user.language_code else settings_local.DEFAULT_LANGUAGE
+                        _ = (lambda k, **kw: i18n_instance.gettext(lang, k,
+                             **kw)) if i18n_instance else (lambda k, **kw: k)
+                        try:
+                            kb = get_main_menu_inline_keyboard(
+                                lang, i18n_instance, settings_local, False)
+                            await bot.send_message(t.user_id, _("trial_ended_today"), reply_markup=kb, parse_mode="HTML")
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            await asyncio.sleep(interval)
     app.router.add_get("/miniapp/sub/", miniapp_sub_handler)
 
     from bot.handlers.user.payment import yookassa_webhook_route
@@ -172,6 +235,12 @@ async def build_and_start_web_app(
     logging.info(
         f"AIOHTTP server started on http://{settings.WEB_SERVER_HOST}:{settings.WEB_SERVER_PORT}"
     )
+
+    # Launch reminders job in background
+    try:
+        asyncio.create_task(reminders_job(app))
+    except Exception:
+        logging.exception("Failed to start reminders_job task")
 
     # Run until cancelled
     await asyncio.Event().wait()

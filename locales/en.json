@@ -426,5 +426,8 @@
   "admin_ads_overview": "📈 <b>Ads</b>\n💰 Revenue: <b>{revenue} RUB</b>\n💸 Spent: <b>{cost} RUB</b>",
   "back_to_ads_list_button": "⬅️ Back to list",
   "admin_ads_card": "📈 <b>Campaign #{id}</b>\nSource: <b>{source}</b>\nstart=<code>{start_param}</code>\nCost: <b>{cost} RUB</b>\nActive: {active}\n\n👥 Starts: <b>{starts}</b>\n🆓 Trials: <b>{trials}</b>\n💳 Payers: <b>{payers}</b>\n💵 Revenue: <b>{revenue} RUB</b>",
+  "renew_reminder_days": "Your subscription expires in {days} day(s). Renew now to keep access.",
+  "renew_reminder_today": "Your subscription expires today. Renew now to keep access to VPN.",
+  "trial_ended_today": "Your trial has ended. Ready to continue? Tap \"Buy\" — it only takes a minute.",
   "about_text": "<b>About VPN Master</b>\n\n⚡ Lightning speed and reliability\nServers up to 10 Gbps — stable over Wi‑Fi and LTE.\n\n🎬 YouTube without ads in 4K\nWatch any videos and sites without lags.\n\n🔟 One subscription — up to 10 devices\nConnect phone, tablet, laptop or even TV at no extra cost.\n\n✔️ Auto‑renewal for uninterrupted access\nYour subscription renews automatically when it expires. You can manage auto‑renewal in the “My Subscription” section.\n\n💳 Supported payment methods: Russian cards and USDT.\n\n📑 By using the service you agree to:\n\n• <a href=\"https://wiki.vpnm.org/docs/user-agreement\">User Agreement</a>\n• <a href=\"https://wiki.vpnm.org/docs/policy\">Privacy Policy</a>\n• <a href=\"https://wiki.vpnm.org/docs/terms_of_service\">Terms of Service</a>"
 }

@@ -187,13 +187,18 @@ def get_payment_url_keyboard(payment_url: str, lang: str,
 
 
 def get_referral_link_keyboard(lang: str,
-                               i18n_instance) -> InlineKeyboardMarkup:
+                               i18n_instance,
+                               share_url: Optional[str] = None) -> InlineKeyboardMarkup:
 
     def _(key, **kwargs):
         return i18n_instance.gettext(lang, key, **kwargs)
     builder = InlineKeyboardBuilder()
-    builder.button(text=_(key="referral_share_message_button"),
-                   callback_data="referral_action:share_message")
+    if share_url:
+        builder.button(
+            text=_(key="referral_share_message_button"), url=share_url)
+    else:
+        builder.button(text=_(key="referral_share_message_button"),
+                       callback_data="referral_action:share_message")
     builder.button(text=_(key="back_to_main_menu_button"),
                    callback_data="main_action:back_to_main")
     builder.adjust(1)
