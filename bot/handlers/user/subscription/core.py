@@ -182,6 +182,8 @@ async def my_subscription_command_handler(
                 mini_url = f"{mini_url}{separator}{urlencode({'user_id': event.from_user.id})}"
             except Exception:
                 pass
+            logging.info(
+                f"Creating WebApp connect button for user {event.from_user.id}: {mini_url}")
             prepend_rows.append([
                 InlineKeyboardButton(
                     text=get_text("connect_button"),

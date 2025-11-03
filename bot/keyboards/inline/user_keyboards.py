@@ -261,6 +261,9 @@ def get_connect_and_main_keyboard(
                 mini_url = f"{mini_url}{sep}{urlencode({'user_id': user_id})}"
             except Exception:
                 pass
+        import logging
+        logging.info(
+            f"[Keyboard] Creating WebApp button for user_id={user_id}: {mini_url}")
         builder.row(
             InlineKeyboardButton(
                 text=_("connect_button"),

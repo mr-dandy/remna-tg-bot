@@ -161,6 +161,10 @@ async def build_and_start_web_app(
                                 kb = get_main_menu_inline_keyboard(
                                     lang, i18n_instance, settings_local, False)
                                 await bot.send_message(s["user_id"], text, reply_markup=kb, parse_mode="HTML")
+                                # Mark notification as sent
+                                await subscription_service.update_last_notification_sent(
+                                    db_session, s["user_id"], s["subscription_end_date_iso_for_update"])
+                                await db_session.commit()
                             except Exception:
                                 pass
                     # Today reminders (0 days) and trial ended today
@@ -175,6 +179,10 @@ async def build_and_start_web_app(
                             kb = get_main_menu_inline_keyboard(
                                 lang, i18n_instance, settings_local, False)
                             await bot.send_message(s["user_id"], text, reply_markup=kb, parse_mode="HTML")
+                            # Mark notification as sent
+                            await subscription_service.update_last_notification_sent(
+                                db_session, s["user_id"], s["subscription_end_date_iso_for_update"])
+                            await db_session.commit()
                         except Exception:
                             pass
                     # Trial ended today
@@ -188,6 +196,10 @@ async def build_and_start_web_app(
                             kb = get_main_menu_inline_keyboard(
                                 lang, i18n_instance, settings_local, False)
                             await bot.send_message(t.user_id, _("trial_ended_today"), reply_markup=kb, parse_mode="HTML")
+                            # Mark notification as sent for trial
+                            await subscription_service.update_last_notification_sent(
+                                db_session, t.user_id, t.end_date)
+                            await db_session.commit()
                         except Exception:
                             pass
             except Exception:

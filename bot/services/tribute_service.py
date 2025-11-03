@@ -190,6 +190,20 @@ class TributeService:
                 if not final_end:
                     final_end = activation_details.get('end_date')
 
+                # Explicit INFO log for successful purchase/renewal via Tribute
+                try:
+                    logging.info(
+                        "Subscription success: user_id=%s, provider=tribute, payment_id=%s, months=%s, amount=%s %s, new_end_date=%s",
+                        str(user_id),
+                        str(payment_record.payment_id),
+                        str(months),
+                        str(amount_float),
+                        currency,
+                        final_end.isoformat() if final_end else "N/A",
+                    )
+                except Exception:
+                    pass
+
                 if final_end:
                     config_link = activation_details.get("subscription_url") or _(
                         "config_link_not_available"
