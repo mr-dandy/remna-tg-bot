@@ -78,17 +78,22 @@ class TributeService:
             return web.json_response(payload, status=200)
 
         def ignored(reason: str) -> web.Response:
+            logging.info("Tribute webhook ignored: %s", reason)
             return web.json_response({"status": "ignored", "reason": reason}, status=200)
 
         def bad_request(reason: str) -> web.Response:
+            logging.warning("Tribute webhook bad request: %s", reason)
             return web.json_response({"status": "error", "reason": reason}, status=400)
 
         if settings.TRIBUTE_API_KEY:
             if not signature_header:
+                logging.warning(
+                    "Tribute webhook rejected: missing trbt-signature header")
                 return web.json_response({"status": "error", "reason": "no_signature"}, status=403)
-            expected_sig = hmac.new(settings.TRIBUTE_API_KEY.encode(), raw_body,
-                                    hashlib.sha256).hexdigest()
+            expected_sig = hmac.new(
+                settings.TRIBUTE_API_KEY.encode(), raw_body, hashlib.sha256).hexdigest()
             if not hmac.compare_digest(expected_sig, signature_header):
+                logging.warning("Tribute webhook rejected: invalid signature")
                 return web.json_response({"status": "error", "reason": "invalid_signature"}, status=403)
 
         try:
@@ -109,8 +114,23 @@ class TributeService:
         event_name = payload.get("name")
         data = payload.get("payload", {})
 
+        try:
+            logging.info(
+                "Tribute webhook event: %s, id_fields=%s",
+                event_name,
+                {k: data.get(k) for k in [
+                    "telegram_user_id", "telegramId", "tg_user_id", "user_id"]},
+            )
+        except Exception:
+            pass
+
         # Mandatory routing fields
-        user_id = data.get("telegram_user_id")
+        user_id = (
+            data.get("telegram_user_id")
+            or data.get("telegramId")
+            or data.get("tg_user_id")
+            or data.get("user_id")
+        )
         if not user_id:
             # Permanent format issue — acknowledge to avoid retries
             return ignored("missing_telegram_user_id")
@@ -136,8 +156,13 @@ class TributeService:
                 # Use a unique, idempotent provider payment id per webhook event
                 # Prefer explicit event/payment identifiers if present; otherwise fall back to payload hash suffix
                 candidate_event_id = (
-                    str(data.get("event_id") or data.get("payment_id") or data.get(
-                        "purchase_id") or data.get("invoice_id") or "")
+                    str(
+                        data.get("event_id")
+                        or data.get("payment_id")
+                        or data.get("purchase_id")
+                        or data.get("invoice_id")
+                        or ""
+                    )
                 )
                 if candidate_event_id:
                     provider_payment_id = candidate_event_id
@@ -185,8 +210,8 @@ class TributeService:
 
                 applied_ref_days = referral_bonus.get(
                     'referee_bonus_applied_days') if referral_bonus else None
-                final_end = (referral_bonus.get('referee_new_end_date')
-                             if referral_bonus else None)
+                final_end = (referral_bonus.get(
+                    'referee_new_end_date') if referral_bonus else None)
                 if not final_end:
                     final_end = activation_details.get('end_date')
 
@@ -205,10 +230,8 @@ class TributeService:
                     pass
 
                 if final_end:
-                    config_link = activation_details.get("subscription_url") or _(
-                        "config_link_not_available"
-                    )
-
+                    config_link = activation_details.get(
+                        "subscription_url") or _("config_link_not_available")
                     if applied_ref_days:
                         inviter_name_display = _('friend_placeholder')
                         if db_user and db_user.referred_by_id:
@@ -235,8 +258,7 @@ class TributeService:
                             config_link=config_link,
                         )
                     markup = get_connect_and_main_keyboard(
-                        lang, i18n, settings, config_link
-                    )
+                        lang, i18n, settings, config_link)
 
                     try:
                         image_ref = settings.PAYMENT_SUCCESS_IMAGE_PATH
@@ -259,7 +281,6 @@ class TributeService:
                                     parse_mode="HTML",
                                 )
                         else:
-                            # Use user's DB language in success messages prepared above
                             await bot.send_message(
                                 int(user_id),
                                 success_msg,

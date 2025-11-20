@@ -82,12 +82,18 @@ async def create_referral_result(inline_query: InlineQuery, bot: Bot,
         user_id = inline_query.from_user.id
         referral_link = referral_service.generate_referral_link(bot_username, user_id)
         
+        per_friend_bonus = getattr(
+            settings, "REFERRAL_DAYS_PER_SUCCESSFUL_FRIEND", None)
+        share_bonus_days = per_friend_bonus if isinstance(
+            per_friend_bonus, int) and per_friend_bonus > 0 else settings.referral_bonus_inviter.get(1, 0)
+
         # Create message content (use same text as friend message)
         message_text = _(
             "referral_friend_message",
             default="🚀 Привет! Попробуй этот VPN - быстрый, надёжный и доступный!\n\n"
-                   "🎁 По моей ссылке тебе дадут бонусные дни к подписке!\n\n{referral_link}",
-            referral_link=referral_link
+                   "🎁 По моей ссылке мне дают {bonus_days} дн. бесплатного доступа, когда друзья оплачивают подписку.\n\n{referral_link}",
+            referral_link=referral_link,
+            bonus_days=share_bonus_days
         )
         
         return InlineQueryResultArticle(

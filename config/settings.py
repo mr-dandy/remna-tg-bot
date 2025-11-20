@@ -126,6 +126,14 @@ class Settings(BaseSettings):
         default=True,
         description="When true, referral bonuses (for inviter and referee) are applied only once per invited user – on their first successful payment."
     )
+    REFERRAL_DAYS_PER_SUCCESSFUL_FRIEND: Optional[int] = Field(
+        default=14,
+        description="Bonus days granted to the inviter for every referred friend who makes their first successful payment."
+    )
+    REFERRAL_FRIEND_TIER_COUNTS: str = Field(
+        default="1,6,12",
+        description="Comma-separated friend counts to highlight in the referral UI tiers (e.g. 1,6,12)."
+    )
 
     PANEL_API_URL: Optional[str] = None
     PANEL_API_KEY: Optional[str] = None
@@ -414,6 +422,24 @@ class Settings(BaseSettings):
         if self.REFERRAL_BONUS_DAYS_REFEREE_12_MONTHS is not None:
             bonuses[12] = self.REFERRAL_BONUS_DAYS_REFEREE_12_MONTHS
         return bonuses
+
+    @computed_field
+    @property
+    def referral_friend_tiers(self) -> List[int]:
+        raw_value = getattr(self, "REFERRAL_FRIEND_TIER_COUNTS", "")
+        tiers: List[int] = []
+        if isinstance(raw_value, str):
+            for part in raw_value.split(','):
+                part = part.strip()
+                if not part:
+                    continue
+                try:
+                    value = int(part)
+                except ValueError:
+                    continue
+                if value > 0 and value not in tiers:
+                    tiers.append(value)
+        return sorted(tiers) if tiers else [1, 6, 12]
 
     # Logging Configuration
     LOG_CHAT_ID: Optional[int] = Field(

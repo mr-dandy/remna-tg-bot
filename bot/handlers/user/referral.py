@@ -69,7 +69,23 @@ async def referral_command_handler(event: Union[types.Message,
         bot_username, inviter_user_id)
 
     bonus_info_parts = []
-    if settings.subscription_options:
+    per_friend_bonus = getattr(
+        settings, "REFERRAL_DAYS_PER_SUCCESSFUL_FRIEND", None)
+    use_per_friend_program = isinstance(
+        per_friend_bonus, int) and per_friend_bonus > 0
+
+    if use_per_friend_program:
+        bonus_info_parts.append(
+            _("referral_bonus_base_line", days=per_friend_bonus))
+        tier_counts = getattr(settings, "referral_friend_tiers", None)
+        if not tier_counts:
+            tier_counts = [1, 6, 12]
+        for tier_count in tier_counts:
+            bonus_info_parts.append(
+                _("referral_bonus_per_friend_tier",
+                  friends=tier_count,
+                  days=tier_count * per_friend_bonus))
+    elif settings.subscription_options:
 
         for months_period_key, _price in sorted(
                 settings.subscription_options.items()):
@@ -101,10 +117,13 @@ async def referral_command_handler(event: Union[types.Message,
 
     from bot.keyboards.inline.user_keyboards import get_referral_link_keyboard
     # Build share URLs for web-app share sheet (Telegram supports opening external share sheets in web).
+    share_bonus_days = per_friend_bonus if use_per_friend_program else settings.referral_bonus_inviter.get(
+        1, 0)
     share_text = i18n.gettext(
         current_lang,
         "referral_friend_message",
         referral_link=referral_link,
+        bonus_days=share_bonus_days,
     )
     import urllib.parse as _url
     encoded_text = _url.quote(share_text)
@@ -160,8 +179,15 @@ async def referral_action_handler(callback: types.CallbackQuery, settings: Setti
             referral_link = referral_service.generate_referral_link(
                 bot_username, inviter_user_id)
 
+            per_friend_bonus_cb = getattr(
+                settings, "REFERRAL_DAYS_PER_SUCCESSFUL_FRIEND", None)
+            share_bonus_days_cb = per_friend_bonus_cb if isinstance(
+                per_friend_bonus_cb, int) and per_friend_bonus_cb > 0 else settings.referral_bonus_inviter.get(1, 0)
+
             friend_message = _(
-                "referral_friend_message", referral_link=referral_link
+                "referral_friend_message",
+                referral_link=referral_link,
+                bonus_days=share_bonus_days_cb
             )
             await callback.message.answer(
                 friend_message, disable_web_page_preview=True

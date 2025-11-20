@@ -24,6 +24,18 @@ class ReferralService:
         self.bot = bot
         self.i18n = i18n
 
+    def _get_inviter_bonus_days(self, purchased_subscription_months: int) -> int:
+        per_friend_bonus = getattr(
+            self.settings, "REFERRAL_DAYS_PER_SUCCESSFUL_FRIEND", None)
+        if isinstance(per_friend_bonus, int) and per_friend_bonus > 0:
+            return per_friend_bonus
+        return self.settings.referral_bonus_inviter.get(
+            purchased_subscription_months, 0)
+
+    def _get_referee_bonus_days(self, purchased_subscription_months: int) -> int:
+        return self.settings.referral_bonus_referee.get(
+            purchased_subscription_months, 0)
+
     async def apply_referral_bonuses_for_payment(
             self,
             session: AsyncSession,
@@ -93,10 +105,10 @@ class ReferralService:
                 and inviter_user_model.first_name else self.i18n.gettext(
                     default_lang_for_placeholder, "friend_placeholder"))
 
-            inviter_bonus_days = self.settings.referral_bonus_inviter.get(
-                purchased_subscription_months)
-            referee_bonus_days = self.settings.referral_bonus_referee.get(
-                purchased_subscription_months)
+            inviter_bonus_days = self._get_inviter_bonus_days(
+                purchased_subscription_months or 0)
+            referee_bonus_days = self._get_referee_bonus_days(
+                purchased_subscription_months or 0)
 
             if inviter_bonus_days and inviter_bonus_days > 0:
                 if not inviter_user_model:
